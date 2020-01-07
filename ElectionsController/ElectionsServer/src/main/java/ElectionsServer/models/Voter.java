@@ -4,15 +4,15 @@ import lombok.Data;
 @Data
 public class Voter {
     private Integer id;
-    private Integer vote;
     private String state;
+    private Integer vote;
 
     public Voter(@JsonProperty(value = "Id", required = true) Integer id,
                  @JsonProperty(value = "State", required = true) String state,
                  @JsonProperty(value = "Vote", required = true) Integer vote){
         this.id = id;
-        this.vote = vote;
         this.state = state;
+        this.vote = vote;
     }
 
     public Voter setId(Integer id){

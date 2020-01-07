@@ -1,0 +1,41 @@
+
+syntax = "proto3";
+
+package ElectionsServer;
+option java_package = "ElectionsServer.gRPC";
+
+option java_multiple_files = true;
+
+// types:
+// 0. Leader sends an update to servers in local cluster
+// 1. Servers in local cluster answer to leader ACK for update request
+// 2. Server from local cluster sends update request to leader, asking to update all servers
+// 3. Leader answer to update initiator about cluster update (success based on succeed field)
+// 4. Server from another state/cluster ask from current state to proceed vote
+// 5. Server from local state answer to remote server from another cluster (success based on succeed field)
+// 6. None
+// 7. ping
+// 8. ping-response
+
+message ElectionsProtoRequest {
+    int32 id = 1;
+    string state = 2;
+    int32 vote = 3;
+    int32 magic = 4;
+    int32 type = 5;
+    string name = 6;
+}
+
+message ElectionsProtoResponse {
+    int32 id = 1;
+    string state = 2;
+    int32 vote = 3;
+    int32 magic = 4;
+    bool succeed = 5;
+    int32 type = 6;
+    string name = 7;
+}
+
+service electionsProtoService {
+    rpc electionsProtoHandler(ElectionsProtoRequest) returns (ElectionsProtoResponse);
+}
