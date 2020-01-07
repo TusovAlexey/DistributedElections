@@ -45,6 +45,7 @@ public class ElectionsManager {
     private HashMap<Integer, Integer> results;
     //TODO - add RPC from committee
     private boolean electionsOpen = true;
+    private String leaderName;
     private boolean isLeader;
     private boolean updateCompleted;
     private ElectionsProtoRequest lastUpdateRequest;
@@ -190,15 +191,25 @@ public class ElectionsManager {
     }
 
     private void startGRPCServer(){
-        Integer port = Integer.parseInt(System.getenv("DOCKER_ELECTIONS_GRPC_SERVER_PORT"));
-        System.out.println("Starting gRPC server on port: " + port);
-        this.gRPCServer = ServerBuilder.forPort(port).addService(new ElectionsProtoServiceImpl(this)).build();
+        System.out.println("Starting gRPC server on port: " + GRpcPort);
+        this.gRPCServer = ServerBuilder.forPort(Integer.parseInt(GRpcPort)).addService(new ElectionsProtoServiceImpl(this)).build();
+        try {
+            this.gRPCServer.start();
+        }catch (Exception e){
+            e.printStackTrace();
+            return;
+        }
         System.out.println("gRPC server started successfully");
     }
 
     public ElectionsManager(){
         this.stateName = System.getenv("DOCKER_ELECTIONS_STATE");
         this.hostName = System.getenv("DOCKER_ELECTIONS_HOSTNAME");
+        this.leaderName = System.getenv("DOCKER_ELECTIONS_LEADER_NAME");
+        if(this.leaderName.equals(this.hostName)){
+            this.isLeader = true;
+        }
+
         this.voters = new HashMap<>();
         this.servers = new HashMap<>();
         this.results = new HashMap<>();
@@ -238,10 +249,16 @@ public class ElectionsManager {
         boolean result = false;
         if(!newVote.getState().equals(this.stateName)){
             result = addVoteToAnotherStateFromREST(newVote);
+            if(result){
+                answer = "Dear citizen (Id " + newVote.getId() + "), your vote registered in servers handling election in your state " + newVote.getState()
+                        + ", Thank you for your vote.";
+            }
         }else {
             result = this.updateCluster(this.hostName, 1000, newVote);
-            if(!result){
+            if(result){
                 this.voteUpdateLocally(newVote);
+                answer = "Dear citizen (Id " + newVote.getId() + "), your vote registered successfully in " + newVote.getState() + ", " +
+                        "Thank you for your vote";
             }else {
                 // TODO - handle somehow
             }
@@ -256,17 +273,17 @@ public class ElectionsManager {
         StreamObserver<ElectionsProtoResponse> responseObserver = new StreamObserver<ElectionsProtoResponse>() {
             @Override
             public void onNext(ElectionsProtoResponse electionsProtoResponse) {
-                System.out.println("On next Async gRPC request");
+                //System.out.println("On next Async gRPC request");
             }
 
             @Override
             public void onError(Throwable throwable) {
-                System.out.println("Error in Async gRPC request");
+                //System.out.println("Error in Async gRPC request");
             }
 
             @Override
             public void onCompleted() {
-                System.out.println("Finished Async gRPC request");
+                //System.out.println("Finished Async gRPC request");
             }
         };
 
@@ -276,7 +293,10 @@ public class ElectionsManager {
     private ElectionsProtoResponse sendSyncGRpcRequest(StateServer server, ElectionsProtoRequest request){
         ManagedChannel channel = ManagedChannelBuilder.forAddress(server.getIp(), Integer.parseInt(server.getGRpcPort())).usePlaintext().build();
         electionsProtoServiceGrpc.electionsProtoServiceBlockingStub stub = electionsProtoServiceGrpc.newBlockingStub(channel);
+        //System.out.println("Sending sync gRPC request to: " + server.getIp());
         ElectionsProtoResponse response = stub.electionsProtoHandler(request);
+        //System.out.println("Got response from: " + response.getName() + ", type: " + response.getType());
+        channel.shutdown();
         return response;
     }
 
@@ -289,7 +309,7 @@ public class ElectionsManager {
                         .setVote(0).setMagic(0).setType(ElectionsProtoServiceImpl.REQUEST_TYPE_PING)
                         .setName(this.hostName).build();
                 ElectionsProtoResponse response = this.sendSyncGRpcRequest(server, request);
-                if(request.getType() == ElectionsProtoServiceImpl.RESPONSE_TYPE_PING){
+                if(response.getType() == ElectionsProtoServiceImpl.RESPONSE_TYPE_PING){
                     status = ALIVE;
                     attempts = 0;
                 }
@@ -359,7 +379,7 @@ public class ElectionsManager {
         return false;
     }
 
-    boolean updateCluster(String name, Integer magic, Voter vote){
+    private boolean updateCluster(String name, Integer magic, Voter vote){
         // TODO - change to zookeeper
         if(this.isLeader){
             return leaderUpdateCluster(name, magic, vote);
@@ -368,7 +388,6 @@ public class ElectionsManager {
         ElectionsProtoRequest request = ElectionsProtoRequest.newBuilder().setId(vote.getId()).setState(vote.getState())
                 .setVote(vote.getVote()).setMagic(magic).setType(2).setName(name).build();
         // TODO - get leader by zookeeper
-        String leaderName = System.getenv("DOCKER_ELECTIONS_LEADER_NAME");
         StateServer leader = this.clusterServers.get(leaderName);
         ElectionsProtoResponse response = this.sendSyncGRpcRequest(leader, request);
         return response.getSucceed();
@@ -408,7 +427,7 @@ public class ElectionsManager {
                     .setId(request.getId()).setState(request.getState()).setVote(request.getVote()).setMagic(request.getMagic())
                     .setSucceed(result).setType(3).setName(this.hostName).build();
             // Update locally (if not failed)
-            if(!result){
+            if(result){
                 this.voteUpdateLocally(new Voter(request.getId(), request.getState(), request.getVote()));
             }
         }else if(type==3){
@@ -420,7 +439,7 @@ public class ElectionsManager {
             response = ElectionsProtoResponse.newBuilder()
                     .setId(request.getId()).setState(request.getState()).setVote(request.getVote()).setMagic(request.getMagic())
                     .setSucceed(result).setType(5).setName(this.hostName).build();
-            if(!result){
+            if(result){
                 // Update locally (even if it's leader, self re-update is accepted)
                 this.voteUpdateLocally(new Voter(request.getId(), request.getState(), request.getVote()));
             }
@@ -538,7 +557,9 @@ public class ElectionsManager {
         @Override
         public void electionsProtoHandler(ElectionsProtoRequest request, StreamObserver<ElectionsProtoResponse> responseObserver){
             ElectionsProtoResponse response;
+            //System.out.println("Got new request from: " + request.getName() + ", type: " + request.getType());
             if(request.getType() == REQUEST_TYPE_PING){
+                //System.out.println("Handling ping request from: " + request.getName());
                 response = ElectionsProtoResponse.newBuilder()
                         .setId(request.getId())
                         .setState(request.getState())
@@ -549,6 +570,7 @@ public class ElectionsManager {
                         .build();
             }else {
                 response = manager.electionsManagerProtoHandler(request);
+                //System.out.println("Request handled by elections manager, response type: " + response.getType());
             }
 
             responseObserver.onNext(response);
