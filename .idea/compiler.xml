@@ -11,6 +11,8 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="ElectionsCommittee" target="1.5" />
+      <module name="ElectionsRemoteInterfaceRMI" target="1.5" />
       <module name="gRPC" target="1.8" />
       <module name="grpc-client" target="1.8" />
       <module name="grpc-server" target="1.8" />

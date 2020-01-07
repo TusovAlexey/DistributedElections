@@ -1,9 +1,12 @@
 package ElectionsServer.service;
 
+import ElectionsRemoteInterfaceRMI.ElectionsCommitteeInstruction;
+import ElectionsRemoteInterfaceRMI.ElectionsCommitteeInstructionRemote;
+import ElectionsRemoteInterfaceRMI.ElectionsCommitteeTask;
 import ElectionsServer.gRPC.ElectionsProtoResponse;
 import ElectionsServer.gRPC.ElectionsProtoRequest;
-import ElectionsServer.gRPC.ElectionsProtoResponse;
 import ElectionsServer.gRPC.electionsProtoServiceGrpc;
+import ElectionsServer.models.Candidate;
 import ElectionsServer.models.StateServer;
 import ElectionsServer.models.Voter;
 import io.grpc.ManagedChannel;
@@ -12,25 +15,26 @@ import io.grpc.Server;
 
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
-import io.grpc.stub.StreamObservers;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 import java.io.*;
+import java.rmi.RemoteException;
 import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static ElectionsRemoteInterfaceRMI.ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.*;
 import static ElectionsServer.models.StateServer.ServerStatus.*;
 import static ElectionsServer.models.StateServer.UpdateStatus.*;
 
-public class ElectionsManager {
+public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
     private static final Integer ALIVE_ATTEMPTS = 100;
     private static final Integer UPDATE_ATTEMPTS = 100;
     private static final Integer REFRESH_STATUS_DELAY_SECONDS = 2;
     private Server gRPCServer;
-    private HashMap<Integer, String> candidates;
+    private HashMap<Integer, Candidate> candidates;
     private final Semaphore mutexGRpcChannel = new Semaphore(1);
     private final Semaphore mutexResultsDatabaseAccess = new Semaphore(1);
     private String stateName;
@@ -42,7 +46,6 @@ public class ElectionsManager {
     // Mapping hostname -> StateServer
     private HashMap<String, StateServer> clusterServers;
     private Integer electors = 0;
-    private HashMap<Integer, Integer> results;
     //TODO - add RPC from committee
     private boolean electionsOpen = true;
     private String leaderName;
@@ -173,7 +176,8 @@ public class ElectionsManager {
             while ((line = br.readLine()) != null){
                 // Candidates csv indexes- 0:id, 1:name
                 String[] voterCsv = line.split(csvSplitBy);
-                this.candidates.put(Integer.parseInt(voterCsv[0]), voterCsv[1]);
+                Candidate candidate = new Candidate(voterCsv[1], Integer.parseInt(voterCsv[0]));
+                this.candidates.put(candidate.getIndex(), candidate);
             }
         }catch (FileNotFoundException e){
             e.printStackTrace();
@@ -212,7 +216,6 @@ public class ElectionsManager {
 
         this.voters = new HashMap<>();
         this.servers = new HashMap<>();
-        this.results = new HashMap<>();
         this.candidates = new HashMap<>();
         this.clusterServers = new HashMap<>();
         System.out.println("Starting Elections Manager for State: " + this.stateName);
@@ -491,51 +494,55 @@ public class ElectionsManager {
         HashMap<Integer, Integer> candidateToVotes = new HashMap<>();
         HashMap<Integer, Integer> newResults = new HashMap<>();
         Integer electorsNumber = this.electors;
-        for(Integer candidate : this.results.keySet()){
-            candidateToVotes.put(candidate, this.getVotesForCandidate(candidate));
-        }
-        Integer votesForElector = (Integer) (this.getActualNumberOfVotes() / electorsNumber);
-        for(Integer candidate : this.results.keySet()){
-            while (candidateToVotes.get(candidate) >= votesForElector){
-                newResults.put(candidate,newResults.get(candidate) + 1);
-                candidateToVotes.put(candidateToVotes.get(candidate), candidateToVotes.get(candidate) - votesForElector);
-                --electorsNumber;
+        Integer totalVotes = getActualNumberOfVotes();
+        Integer voterForElector = (Integer) (totalVotes / electorsNumber);
+
+        for(Candidate candidate : this.candidates.values()){
+            Integer candidateVotes = this.getVotesForCandidate(candidate.getIndex());
+            candidate.setVotes(candidateVotes);
+            while (candidateVotes > voterForElector){
+                candidate.setElectors(candidate.getElectors() + 1);
+                candidateVotes = candidateVotes - voterForElector;
             }
         }
-
-        while (electorsNumber > 0){
-            // Add last elector to candidate with max left votes after reduction
-            Integer maxValue = Collections.max(candidateToVotes.values());
-            for (Integer candidate : candidateToVotes.keySet()){
-                if(candidateToVotes.get(candidate).equals(maxValue)){
-                    newResults.put(candidate, newResults.get(candidate)+1);
-                    candidateToVotes.put(candidateToVotes.get(candidate), candidateToVotes.get(candidate) - maxValue);
-                    --electorsNumber;
-                }
-            }
-        }
-
-        this.results = newResults;
     }
 
-    // Handle function for RPC results request from committee
     // The result if a map from candidate index to number of his electors
-    private HashMap<Integer, Integer> getResults(){
-        HashMap<Integer, Integer> results = new HashMap<>();
+    private HashMap<Integer, Candidate> getResults(){
+        HashMap<Integer, Candidate> results = new HashMap<>();
         try {
             // Acquire mutex to prevent result change from other contexts
             mutexResultsDatabaseAccess.acquire(1);
             updateElectors();
-            results = new HashMap<>(this.results);
+            results = new HashMap<>(this.candidates);
         }catch (Exception e){
             e.printStackTrace();
         }finally {
             mutexResultsDatabaseAccess.release(1);
         }
+
         return results;
     }
 
+    // Handle function for RPC results request from committee
+    @Override
+    public <T> T executeTask(ElectionsCommitteeTask<T> task) throws RemoteException {
+        ElectionsCommitteeInstruction instruction = (ElectionsCommitteeInstruction)task;
+        ElectionsCommitteeInstruction.ElectionCommitteeInstructionType instructionType = instruction.getInstructionType();
+        if(instructionType.equals(START_ELECTIONS)){
+            this.electionsOpen = true;
+            return task.responseStartElections();
+        }if(instructionType.equals(STOP_ELECTIONS)){
+            this.electionsOpen = false;
+            return task.responseStopElections();
+        }if(instructionType.equals(GET_RESULTS)){
+            HashMap<Integer, Candidate> candidateResults = getResults();
+            return task.responseGetResults(candidateResults);
+        }
 
+        // Shouldn't be here
+        return task.execute();
+    }
 
     public static class ElectionsProtoServiceImpl extends electionsProtoServiceGrpc.electionsProtoServiceImplBase{
         ElectionsManager manager;
