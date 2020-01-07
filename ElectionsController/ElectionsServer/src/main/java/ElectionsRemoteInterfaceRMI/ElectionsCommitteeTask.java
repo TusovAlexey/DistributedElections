@@ -9,5 +9,7 @@ public interface ElectionsCommitteeTask<T> {
     T responseStartElections();
     T responseStopElections();
     T responseGetResults(HashMap<Integer, Candidate> results);
+    T responseSystemUp();
+    T responseSystemDown();
 
 }

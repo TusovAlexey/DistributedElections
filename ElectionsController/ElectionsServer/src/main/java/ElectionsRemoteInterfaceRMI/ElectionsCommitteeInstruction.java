@@ -9,6 +9,10 @@ import java.util.List;
 
 public class ElectionsCommitteeInstruction implements ElectionsCommitteeTask<ElectionsCommitteeInstruction>, Serializable {
     public enum ElectionCommitteeInstructionType{
+        SYSTEM_UP,
+        SYSTEM_UP_RESPONSE,
+        SYSTEM_DOWN,
+        SYSTEM_DOWN_RESPONSE,
         START_ELECTIONS,
         START_ELECTIONS_RESPONSE,
         STOP_ELECTIONS,
@@ -26,6 +30,10 @@ public class ElectionsCommitteeInstruction implements ElectionsCommitteeTask<Ele
     private ElectionCommitteeInstructionType instructionType;
     private ElectionsCommitteeInstructionStatus instructionStatus;
     private HashMap<Integer, Candidate> candidatesResults;
+
+    public void setInstructionStatus(ElectionsCommitteeInstructionStatus status){this.instructionStatus = status;}
+    public void setInstructionType(ElectionCommitteeInstructionType type){this.instructionType = type;}
+
 
     public ElectionsCommitteeInstruction(ElectionCommitteeInstructionType instructionType,
                                          ElectionsCommitteeInstructionStatus instructionStatus,
@@ -73,6 +81,20 @@ public class ElectionsCommitteeInstruction implements ElectionsCommitteeTask<Ele
         this.instructionType = ElectionCommitteeInstructionType.GET_RESULTS_RESPONSE;
         this.instructionStatus = ElectionsCommitteeInstructionStatus.SUCCESS;
         this.candidatesResults = results;
+        return this;
+    }
+
+    @Override
+    public ElectionsCommitteeInstruction responseSystemUp() {
+        this.instructionStatus = ElectionsCommitteeInstructionStatus.SUCCESS;
+        this.instructionType = ElectionCommitteeInstructionType.SYSTEM_UP_RESPONSE;
+        return this;
+    }
+
+    @Override
+    public ElectionsCommitteeInstruction responseSystemDown() {
+        this.instructionStatus = ElectionsCommitteeInstructionStatus.SUCCESS;
+        this.instructionType = ElectionCommitteeInstructionType.SYSTEM_DOWN_RESPONSE;
         return this;
     }
 

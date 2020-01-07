@@ -8,6 +8,8 @@ import static ElectionsRemoteInterfaceRMI.ElectionsCommitteeInstruction.Election
 
 public class ElectionsCommitteeClientMain {
     public static void main(String args[]){
+
+
         String serverName = "serverCA0";
         ElectionsCommitteeClient client = new ElectionsCommitteeClient(serverName);
         ElectionsCommitteeInstruction instruction = new ElectionsCommitteeInstruction(START_ELECTIONS);

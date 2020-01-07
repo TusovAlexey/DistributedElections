@@ -20,6 +20,8 @@ import org.springframework.core.io.Resource;
 
 import java.io.*;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +32,7 @@ import static ElectionsServer.models.StateServer.ServerStatus.*;
 import static ElectionsServer.models.StateServer.UpdateStatus.*;
 
 public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
+    private IraClass zookeeper;
     private static final Integer ALIVE_ATTEMPTS = 100;
     private static final Integer UPDATE_ATTEMPTS = 100;
     private static final Integer REFRESH_STATUS_DELAY_SECONDS = 2;
@@ -40,6 +43,7 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
     private String stateName;
     private String hostName;
     private String GRpcPort;
+    private Integer RmiPort;
     private HashMap<Integer, Voter> voters;
     // Mapping hostname -> StateServer
     private HashMap<String, StateServer> servers;
@@ -47,6 +51,8 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
     private HashMap<String, StateServer> clusterServers;
     private Integer electors = 0;
     //TODO - add RPC from committee
+    private Registry registry;
+    private boolean systemUp = false;
     private boolean electionsOpen = true;
     private String leaderName;
     private boolean isLeader;
@@ -206,6 +212,14 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
         System.out.println("gRPC server started successfully");
     }
 
+    public void startRmiServer(){
+        try {
+            this.registry = LocateRegistry.createRegistry(this.RmiPort);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
     public ElectionsManager(){
         this.stateName = System.getenv("DOCKER_ELECTIONS_STATE");
         this.hostName = System.getenv("DOCKER_ELECTIONS_HOSTNAME");
@@ -225,7 +239,24 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
         this.parseServersFile();
         this.parseCandidatesFile();
         this.startGRPCServer();
+
+        //this.startRmiServer();
+
         System.out.println("Elections Manager initialization completed!");
+        System.out.println("Waiting until all servers are ready, committee should send system up instruction");
+        while (!systemUp){
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            }catch (InterruptedException e) {
+                e.printStackTrace();
+                System.out.println("Initialization failed");
+                return;
+            }
+        }
+
+        System.out.println("Ok! we are ready to go. Just let me know when elections officially starts");
+        System.out.println("Voter can't vote yet");
+        System.out.println("Committee should send start message");
     }
 
     public List<Voter> getAllVoters(){
@@ -248,6 +279,12 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
     }
 
     public String addVoteFromREST(Voter newVote){
+        if (!this.systemUp){
+            return "We are sorry, our systems not ready yet.";
+        }else if(!this.electionsOpen){
+            return "We are sorry, elections not started yet. We are waiting to start command from the committee";
+        }
+
         String answer = "";
         boolean result = false;
         if(!newVote.getState().equals(this.stateName)){
@@ -257,16 +294,15 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
                         + ", Thank you for your vote.";
             }
         }else {
-            result = this.updateCluster(this.hostName, 1000, newVote);
-            if(result){
-                this.voteUpdateLocally(newVote);
-                answer = "Dear citizen (Id " + newVote.getId() + "), your vote registered successfully in " + newVote.getState() + ", " +
-                        "Thank you for your vote";
-            }else {
-                // TODO - handle somehow
+            while (result!=true){
+                result = this.updateCluster(this.hostName, 1000, newVote);
+                if(result){
+                    this.voteUpdateLocally(newVote);
+                    answer = "Dear citizen (Id " + newVote.getId() + "), your vote registered successfully in " + newVote.getState() + ", " +
+                            "Thank you for your vote";
+                }
             }
         }
-
         return answer;
     }
 
@@ -393,6 +429,13 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
         // TODO - get leader by zookeeper
         StateServer leader = this.clusterServers.get(leaderName);
         ElectionsProtoResponse response = this.sendSyncGRpcRequest(leader, request);
+
+        // Add node to zookeeper
+
+        // Polling on znodes
+
+        // if all committed return true, else false
+
         return response.getSucceed();
     }
 
@@ -411,11 +454,16 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
         ElectionsProtoResponse response;
 
         if(type==0){
-            // Need to update just local value
-            this.voteUpdateLocally(new Voter(request.getId(), request.getState(), request.getVote()));
+            Voter vote = new Voter(request.getId(), request.getState(), request.getVote());
+            // Dont update locally yet, wait for ack from zookeeper api
+            String leaderName = request.getName();
+            // Answer to leader that you received the update
             response = ElectionsProtoResponse.newBuilder()
                     .setId(request.getId()).setState(request.getState()).setVote(request.getVote()).setMagic(request.getMagic())
                     .setSucceed(true).setType(1).setName(this.hostName).build();
+
+            // Polling on z-node in zookeeper
+            // if polling true update locally, else nothing
         }else if (type==1){
             // Current is leader, some server sent ACK for last update, register it
             this.leaderReceivedACK(request.getName(), request.getMagic(), new Voter(request.getId(), request.getState(), request.getVote()));
@@ -532,12 +580,15 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
         if(instructionType.equals(START_ELECTIONS)){
             this.electionsOpen = true;
             return task.responseStartElections();
-        }if(instructionType.equals(STOP_ELECTIONS)){
+        }else if(instructionType.equals(STOP_ELECTIONS)){
             this.electionsOpen = false;
             return task.responseStopElections();
-        }if(instructionType.equals(GET_RESULTS)){
+        }else if(instructionType.equals(GET_RESULTS)){
             HashMap<Integer, Candidate> candidateResults = getResults();
             return task.responseGetResults(candidateResults);
+        }else if(instructionType.equals(SYSTEM_UP)){
+            this.systemUp = true;
+            return task.responseSystemUp();
         }
 
         // Shouldn't be here
