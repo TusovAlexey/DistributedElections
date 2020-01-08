@@ -1,0 +1,46 @@
+version: "3.7"
+services:
+  zookeeper1:
+    image: zookeepercluster
+    container_name: zookeeper1
+    hostname: zookeeper1
+    environment:
+        ZOOKEEPER1: zookeeper1
+        ZOOKEEPER2: zookeeper2
+        ZOOKEEPER3: zookeeper3
+        MYID: 1
+    ports:
+        - 2181:2181
+    networks:
+        - zookeeper
+  zookeeper2:
+    image: zookeepercluster
+    container_name: zookeeper2
+    hostname: zookeeper2
+    environment:
+        ZOOKEEPER1: zookeeper1
+        ZOOKEEPER2: zookeeper2
+        ZOOKEEPER3: zookeeper3
+        MYID: 2
+    ports:
+        - 2182:2181
+    networks:
+        - zookeeper
+  zookeeper3:
+    image: zookeepercluster
+    container_name: zookeeper3
+    hostname: zookeeper3
+    environment:
+        ZOOKEEPER1: zookeeper1
+        ZOOKEEPER2: zookeeper2
+        ZOOKEEPER3: zookeeper3
+        MYID: 3
+    ports:
+        - 2183:2181
+    networks:
+        - zookeeper
+
+networks:
+    zookeeper:
+        external:
+            name: zookeeper

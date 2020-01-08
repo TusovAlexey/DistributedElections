@@ -57,6 +57,7 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
     private boolean isLeader;
     private boolean updateCompleted;
     private ElectionsProtoRequest lastUpdateRequest;
+    private ElectionsZookeeperClient zookeeperClient;
 
     private void parseVotersFile(){
         String line;
@@ -230,24 +231,26 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
         this.parseServersFile();
         this.parseCandidatesFile();
         this.startGRPCServer();
-
+        this.zookeeperClient = new ElectionsZookeeperClient();
+        this.systemUp= true;
+        this.electionsOpen = true;
         //this.startRmiServer();
 
-        System.out.println("Elections Manager initialization completed!");
-        System.out.println("Waiting until all servers are ready, committee should send system up instruction");
-        while (!systemUp){
-            try {
-                TimeUnit.SECONDS.sleep(1);
-            }catch (InterruptedException e) {
-                e.printStackTrace();
-                System.out.println("Initialization failed");
-                return;
-            }
-        }
-
-        System.out.println("Ok! we are ready to go. Just let me know when elections officially starts");
-        System.out.println("Voter can't vote yet");
-        System.out.println("Committee should send start message");
+        //System.out.println("Elections Manager initialization completed!");
+        //System.out.println("Waiting until all servers are ready, committee should send system up instruction");
+        //while (!systemUp){
+        //    try {
+        //        TimeUnit.SECONDS.sleep(1);
+        //    }catch (InterruptedException e) {
+        //        e.printStackTrace();
+        //        System.out.println("Initialization failed");
+        //        return;
+        //    }
+        //}
+//
+        //System.out.println("Ok! we are ready to go. Just let me know when elections officially starts");
+        //System.out.println("Voter can't vote yet");
+        //System.out.println("Committee should send start message");
     }
 
     public List<Voter> getAllVoters(){

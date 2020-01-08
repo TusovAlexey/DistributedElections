@@ -1,4 +1,4 @@
-version: '3.1'
+version: '3.7'
 
 # Ports convention:
 #      2XXYZ
@@ -10,19 +10,61 @@ version: '3.1'
 #      2 for gRPC server service
 
 services:
-
-  committee_client:
-    container_name: committeeClient
+  zookeeper1:
+    image: zookeepercluster
+    container_name: zookeeper1
     build:
-      context: .
-      dockerfile: ./ElectionsController/ElectionsServer/DockerfileCommittee
-    image: committee_client
-    hostname: CommitteeClient
-    expose:
-      - 20002
-      - 20012
+      context: ./ElectionsController/ZooKeeper
+      dockerfile: Dockerfile
+    hostname: zookeeper1
+    environment:
+      ZOOKEEPER1: zookeeper1
+      ZOOKEEPER2: zookeeper2
+      ZOOKEEPER3: zookeeper3
+      MYID: 1
+    ports:
+      - 2181:2181
     networks:
       - elections_net
+  zookeeper2:
+    image: zookeepercluster
+    container_name: zookeeper2
+    hostname: zookeeper2
+    environment:
+      ZOOKEEPER1: zookeeper1
+      ZOOKEEPER2: zookeeper2
+      ZOOKEEPER3: zookeeper3
+      MYID: 2
+    ports:
+      - 2182:2181
+    networks:
+      - elections_net
+  zookeeper3:
+    image: zookeepercluster
+    container_name: zookeeper3
+    hostname: zookeeper3
+    environment:
+      ZOOKEEPER1: zookeeper1
+      ZOOKEEPER2: zookeeper2
+      ZOOKEEPER3: zookeeper3
+      MYID: 3
+    ports:
+      - 2183:2181
+    networks:
+      - elections_net
+
+#  committee_client:
+#    container_name: committeeClient
+#    build:
+#      context: .
+#      dockerfile: ./ElectionsController/ElectionsServer/DockerfileCommittee
+#    image: committee_client
+#    hostname: CommitteeClient
+#    expose:
+#      - 20002
+#      - 20012
+#    networks:
+#      - elections_net
 
 # CA state - 3 REST servers and 3 REST clients
 # Server0
@@ -49,6 +91,7 @@ services:
       - DOCKER_RMI_PORT=20002
       - DOCKER_ELECTIONS_HOSTNAME=serverCA0
       - DOCKER_ELECTIONS_LEADER_NAME=serverCA0
+      - DOCKER_ZOOKEEPER=zookeeper1:2181
     ports:
       - 20000:20000
       - 20001:20001
@@ -74,29 +117,30 @@ services:
       - elections_server_ca_0
     networks:
       - elections_net
-  elections_server_ca_1:
-    container_name: serverCA1
-    build:
-      context: .
-      dockerfile: ./ElectionsController/ElectionsServer/Dockerfile
-    image: elections_server
-    hostname: ElectionsServer-CA-1
-    environment:
-      - DOCKER_HOST_NAME=serverCA0
-      - DOCKER_ELECTIONS_STATE=CA
-      - DOCKER_ELECTIONS_REST_PORT=20010
-      - DOCKER_ELECTIONS_GRPC_SERVER_PORT=20011
-      - DOCKER_RMI_PORT=20012
-      - DOCKER_ELECTIONS_HOSTNAME=serverCA1
-      - DOCKER_ELECTIONS_LEADER_NAME=serverCA0
-    ports:
-      - 20010:20010
-      - 20011:20011
-      - 5015:5005
-    expose:
-      - 20012
-    networks:
-      - elections_net
+##  elections_server_ca_1:
+##    container_name: serverCA1
+##    build:
+##      context: .
+##      dockerfile: ./ElectionsController/ElectionsServer/Dockerfile
+##    image: elections_server
+##    hostname: ElectionsServer-CA-1
+##    environment:
+##      - DOCKER_HOST_NAME=serverCA0
+##      - DOCKER_ELECTIONS_STATE=CA
+#      - DOCKER_ELECTIONS_REST_PORT=20010
+#      - DOCKER_ELECTIONS_GRPC_SERVER_PORT=20011
+#      - DOCKER_RMI_PORT=20012
+#      - DOCKER_ELECTIONS_HOSTNAME=serverCA1
+#      - DOCKER_ELECTIONS_LEADER_NAME=serverCA0
+#      - - DOCKER_ZOOKEEPER=zookeeper2:2181
+#    ports:
+#      - 20010:20010
+#      - 20011:20011
+#      - 5015:5005
+#    expose:
+#      - 20012
+#    networks:
+#      - elections_net
 #  elections_client_ca_1:
 #    container_name: clientCA1
 #    build:
