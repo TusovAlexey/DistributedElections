@@ -11,6 +11,19 @@ version: '3.1'
 
 services:
 
+  committee_client:
+    container_name: committeeClient
+    build:
+      context: .
+      dockerfile: ./ElectionsController/ElectionsServer/DockerfileCommittee
+    image: committee_client
+    hostname: CommitteeClient
+    expose:
+      - 20002
+      - 20012
+    networks:
+      - elections_net
+
 # CA state - 3 REST servers and 3 REST clients
 # Server0
 #   REST        - serverCA0:20000
@@ -29,15 +42,19 @@ services:
     image: elections_server
     hostname: ElectionsServer-CA-0
     environment:
+      - DOCKER_HOST_NAME=serverCA0
       - DOCKER_ELECTIONS_STATE=CA
       - DOCKER_ELECTIONS_REST_PORT=20000
       - DOCKER_ELECTIONS_GRPC_SERVER_PORT=20001
+      - DOCKER_RMI_PORT=20002
       - DOCKER_ELECTIONS_HOSTNAME=serverCA0
       - DOCKER_ELECTIONS_LEADER_NAME=serverCA0
     ports:
       - 20000:20000
       - 20001:20001
       - 5005:5005
+    expose:
+      - 20002
     networks:
       - elections_net
   elections_client_ca_0:
@@ -65,46 +82,50 @@ services:
     image: elections_server
     hostname: ElectionsServer-CA-1
     environment:
+      - DOCKER_HOST_NAME=serverCA0
       - DOCKER_ELECTIONS_STATE=CA
       - DOCKER_ELECTIONS_REST_PORT=20010
       - DOCKER_ELECTIONS_GRPC_SERVER_PORT=20011
+      - DOCKER_RMI_PORT=20012
       - DOCKER_ELECTIONS_HOSTNAME=serverCA1
       - DOCKER_ELECTIONS_LEADER_NAME=serverCA0
     ports:
       - 20010:20010
       - 20011:20011
       - 5015:5005
+    expose:
+      - 20012
     networks:
       - elections_net
-  elections_client_ca_1:
-    container_name: clientCA1
-    build:
-      context: .
-      dockerfile: ./ElectionsController/ElectionsClient/Dockerfile
-    image: elections_client
-    hostname: ElectionsClient-CA-1
-    environment:
-      - DOCKER_ELECTIONS_STATE=CA
-      - DOCKER_ELECTIONS_CLIENT_INDEX=1
-      - DOCKER_ELECTIONS_CLIENTS=3
-      - DOCKER_ELECTIONS_SERVER_REST_PORT=20010
-      - DOCKER_ELECTIONS_SERVER_REST_NAME=serverCA1
-    depends_on:
-      - elections_server_ca_1
-    networks:
-      - elections_net
-#  elections_server_ca_2:
-#    container_name: serverCA2
+#  elections_client_ca_1:
+#    container_name: clientCA1
 #    build:
 #      context: .
-#      dockerfile: ./ElectionsController/ElectionsServer/Dockerfile
-#    image: elections_server
-#    hostname: ElectionsServer-CA-2
+#      dockerfile: ./ElectionsController/ElectionsClient/Dockerfile
+#    image: elections_client
+#    hostname: ElectionsClient-CA-1
 #    environment:
 #      - DOCKER_ELECTIONS_STATE=CA
-#      - DOCKER_ELECTIONS_REST_PORT=20020
-#    ports:
-#      - 20020:20020
+#      - DOCKER_ELECTIONS_CLIENT_INDEX=1
+#      - DOCKER_ELECTIONS_CLIENTS=3
+#      - DOCKER_ELECTIONS_SERVER_REST_PORT=20010
+#      - DOCKER_ELECTIONS_SERVER_REST_NAME=serverCA1
+#    depends_on:
+#      - elections_server_ca_1
+#    networks:
+#      - elections_net
+##  elections_server_ca_2:
+##    container_name: serverCA2
+##    build:
+##      context: .
+##      dockerfile: ./ElectionsController/ElectionsServer/Dockerfile
+##    image: elections_server
+##    hostname: ElectionsServer-CA-2
+##    environment:
+##      - DOCKER_ELECTIONS_STATE=CA
+##      - DOCKER_ELECTIONS_REST_PORT=20020
+##    ports:
+##      - 20020:20020
 #      - 20021:20021
 #      - 20022:20022
 #      - 20023:20023

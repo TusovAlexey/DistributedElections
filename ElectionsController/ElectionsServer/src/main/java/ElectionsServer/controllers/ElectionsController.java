@@ -21,7 +21,7 @@ public class ElectionsController {
         // Need to find out how to pass arguments to manager constructor
         this.electionsManager = new ElectionsManager();
         Integer rmiPort = Integer.parseInt(System.getenv("DOCKER_RMI_PORT"));
-        System.setProperty("java.rmi.server.hostname", "DOCKER_HOST_NAME");
+        System.setProperty("java.rmi.server.hostname", System.getenv("DOCKER_HOST_NAME"));
 
         // Bind to registry for RMI
         try {

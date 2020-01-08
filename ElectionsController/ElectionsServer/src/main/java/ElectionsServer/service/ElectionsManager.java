@@ -32,7 +32,6 @@ import static ElectionsServer.models.StateServer.ServerStatus.*;
 import static ElectionsServer.models.StateServer.UpdateStatus.*;
 
 public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
-    private IraClass zookeeper;
     private static final Integer ALIVE_ATTEMPTS = 100;
     private static final Integer UPDATE_ATTEMPTS = 100;
     private static final Integer REFRESH_STATUS_DELAY_SECONDS = 2;
@@ -139,8 +138,8 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
             //br = new BufferedReader(new FileReader(pathPrefix + "servers/servers.csv"));
             while ((line = br.readLine()) != null){
                 String[] serverCsv = line.split(csvSplitBy);
-                // Servers csv indexes- 0:state_name 1:ip 2:port(REST) 3:gRPC port
-                StateServer server = new StateServer(serverCsv[0], serverCsv[1], serverCsv[2], serverCsv[3]);
+                // Servers csv indexes- 0:state_name 1:ip 2:port(REST) 3:gRPC port 4: RMI port
+                StateServer server = new StateServer(serverCsv[0], serverCsv[1], serverCsv[2], serverCsv[3], serverCsv[4]);
                 this.servers.put(server.getIp(),server);
                 if(server.getIp().equals(this.hostName)){
                     this.GRpcPort = server.getGRpcPort();
@@ -210,14 +209,6 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
             return;
         }
         System.out.println("gRPC server started successfully");
-    }
-
-    public void startRmiServer(){
-        try {
-            this.registry = LocateRegistry.createRegistry(this.RmiPort);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
     }
 
     public ElectionsManager(){

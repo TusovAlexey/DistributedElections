@@ -5,6 +5,7 @@ import ElectionsRemoteInterfaceRMI.ElectionsCommitteeInstructionRemote;
 import ElectionsServer.models.Candidate;
 import ElectionsServer.models.StateServer;
 
+import java.io.*;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -16,23 +17,92 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class ElectionsCommitteeClient {
+    private final static String rootPath = "src" + File.separator + "main" + File.separator + "resources" + File.separator + "csv_files" + File.separator;
     private HashMap<String, StateServer> servers;
     private HashMap<Integer, Candidate> candidates;
 
-    public ElectionsCommitteeClient(Set<StateServer> servers){
+    private void parseServers(){
+        String line;
+        BufferedReader br = null;
+        String csvSplitBy = ",";
+
+        try {
+            //Resource resource = new ClassPathResource("csv_files" + File.separator +"servers" + File.separator + "servers.csv");
+            //InputStream input = resource.getInputStream();
+            //InputStreamReader isr = new InputStreamReader(input);
+            //br = new BufferedReader(isr);
+            br = new BufferedReader(new FileReader( rootPath + "servers" + File.separator + "servers.csv"));
+            while ((line = br.readLine()) != null){
+                String[] serverCsv = line.split(csvSplitBy);
+                // Servers csv indexes- 0:state_name 1:ip(hostname) 2:port(REST) 3:gRPC port 4: RMI port
+                StateServer server = new StateServer(serverCsv[0], serverCsv[1], serverCsv[2], serverCsv[3], serverCsv[4]);
+                this.servers.put(server.getIp(),server);
+            }
+        }catch (FileNotFoundException e){
+            e.printStackTrace();
+        }catch (IOException e){
+            e.printStackTrace();
+        }finally {
+            if (br != null){
+                try {
+                    br.close();
+                }catch (IOException e){
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private void parseCandidates(){
+        String line;
+        BufferedReader br = null;
+        String csvSplitBy = ",";
+
+        try {
+            //Resource resource = new ClassPathResource("csv_files" + File.separator +"candidates" + File.separator + "candidates.csv");
+            //InputStream input = resource.getInputStream();
+            //InputStreamReader isr = new InputStreamReader(input);
+            //br = new BufferedReader(isr);
+            br = new BufferedReader(new FileReader( rootPath + "candidates" + File.separator + "candidates.csv"));
+            while ((line = br.readLine()) != null){
+                // Candidates csv indexes- 0:id, 1:name
+                String[] voterCsv = line.split(csvSplitBy);
+                Candidate candidate = new Candidate(voterCsv[1], Integer.parseInt(voterCsv[0]));
+                this.candidates.put(candidate.getIndex(), candidate);
+            }
+        }catch (FileNotFoundException e){
+            e.printStackTrace();
+        }catch (IOException e){
+            e.printStackTrace();
+        }finally {
+            if (br != null){
+                try {
+                    br.close();
+                }catch (IOException e){
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public ElectionsCommitteeClient(){
         this.servers = new HashMap<>();
         this.candidates = new HashMap<>();
-
-        for(StateServer server : servers){
-            Integer attempts = 100;
+        this.parseServers();
+        this.parseCandidates();
+        for(StateServer server : this.servers.values()){
+            Integer attempts = 5;
             while (attempts > 0){
                 try {
+                    System.out.println("Trying to get registry from " + server.getIp() + ":" + server.getRmiPort());
                     Registry registry = LocateRegistry.getRegistry(server.getIp(), Integer.parseInt(server.getRmiPort()));
+                    System.out.println("Looking for ElectionRMI in registry");
                     ElectionsCommitteeInstructionRemote remoteExec = (ElectionsCommitteeInstructionRemote)registry
                             .lookup("ElectionsRMI");
                     server.setRemoteExecutor(remoteExec);
                     server.setStatus(StateServer.ServerStatus.ALIVE);
                 } catch (RemoteException | NotBoundException e) {
+                    e.printStackTrace();
                     --attempts;
                     if (attempts==0){
                         server.setStatus(StateServer.ServerStatus.DIED);
@@ -120,7 +190,10 @@ public class ElectionsCommitteeClient {
             }
         }
 
-        System.out
+        System.out.println("Common results:");
+        for (Candidate candidate: this.candidates.values()){
+            System.out.println(candidate);
+        }
     }
 
 
