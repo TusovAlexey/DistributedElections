@@ -22,6 +22,7 @@ import java.io.*;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +32,7 @@ import static ElectionsRemoteInterfaceRMI.ElectionsCommitteeInstruction.Election
 import static ElectionsServer.models.StateServer.ServerStatus.*;
 import static ElectionsServer.models.StateServer.UpdateStatus.*;
 
-public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
+public class ElectionsManager extends UnicastRemoteObject implements ElectionsCommitteeInstructionRemote {
     private static final Integer ALIVE_ATTEMPTS = 100;
     private static final Integer UPDATE_ATTEMPTS = 100;
     private static final Integer REFRESH_STATUS_DELAY_SECONDS = 2;
@@ -212,7 +213,8 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
         System.out.println("gRPC server started successfully");
     }
 
-    public ElectionsManager(){
+    public ElectionsManager() throws RemoteException {
+        super();
         this.stateName = System.getenv("DOCKER_ELECTIONS_STATE");
         this.hostName = System.getenv("DOCKER_ELECTIONS_HOSTNAME");
         this.leaderName = System.getenv("DOCKER_ELECTIONS_LEADER_NAME");
@@ -237,21 +239,21 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
         this.electionsOpen = true;
         //this.startRmiServer();
 
-        //System.out.println("Elections Manager initialization completed!");
-        //System.out.println("Waiting until all servers are ready, committee should send system up instruction");
-        //while (!systemUp){
-        //    try {
-        //        TimeUnit.SECONDS.sleep(1);
-        //    }catch (InterruptedException e) {
-        //        e.printStackTrace();
-        //        System.out.println("Initialization failed");
-        //        return;
-        //    }
-        //}
-//
-        //System.out.println("Ok! we are ready to go. Just let me know when elections officially starts");
-        //System.out.println("Voter can't vote yet");
-        //System.out.println("Committee should send start message");
+        System.out.println("Elections Manager initialization completed!");
+        System.out.println("Waiting until all servers are ready, committee should send system up instruction");
+        while (!systemUp){
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            }catch (InterruptedException e) {
+                e.printStackTrace();
+                System.out.println("Initialization failed");
+                return;
+            }
+        }
+
+        System.out.println("Ok! we are ready to go. Just let me know when elections officially starts");
+        System.out.println("Voter can't vote yet");
+        System.out.println("Committee should send start message");
     }
 
     public List<Voter> getAllVoters(){

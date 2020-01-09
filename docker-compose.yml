@@ -53,18 +53,18 @@ services:
     networks:
       - elections_net
 
-#  committee_client:
-#    container_name: committeeClient
-#    build:
-#      context: .
-#      dockerfile: ./ElectionsController/ElectionsServer/DockerfileCommittee
-#    image: committee_client
-#    hostname: CommitteeClient
-#    expose:
-#      - 20002
-#      - 20012
-#    networks:
-#      - elections_net
+  committee_client:
+    container_name: committeeClient
+    build:
+      context: .
+      dockerfile: ./ElectionsController/ElectionsServer/DockerfileCommittee
+    image: committee_client
+    hostname: CommitteeClient
+    expose:
+      - 20002
+      - 20012
+    networks:
+      - elections_net
 
 # CA state - 3 REST servers and 3 REST clients
 # Server0

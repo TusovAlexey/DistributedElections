@@ -16,21 +16,27 @@ public class ElectionsController {
     // My state information (voters collection, state name, servers list, electors number)
     ElectionsManager electionsManager;
 
-    // Learn how to invoke with different state name using springboot
     ElectionsController(){
         // Need to find out how to pass arguments to manager constructor
-        this.electionsManager = new ElectionsManager();
-        //Integer rmiPort = Integer.parseInt(System.getenv("DOCKER_RMI_PORT"));
-        //System.setProperty("java.rmi.server.hostname", System.getenv("DOCKER_HOST_NAME"));
-//
-        //// Bind to registry for RMI
-        //try {
-        //    ElectionsManager stub = (ElectionsManager) UnicastRemoteObject.exportObject(this.electionsManager, 0);
-        //    Registry registry = LocateRegistry.createRegistry(rmiPort);
-        //    registry.rebind("ElectionsRMI", stub);
-        //} catch (RemoteException e) {
-        //    e.printStackTrace();
-        //}
+        try {
+            this.electionsManager = new ElectionsManager();
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+
+
+        Integer rmiPort = Integer.parseInt(System.getenv("DOCKER_RMI_PORT"));
+        System.setProperty("java.rmi.server.hostname", System.getenv("DOCKER_HOST_NAME"));
+
+        // Bind to registry for RMI
+        try {
+            Registry registry = LocateRegistry.createRegistry(rmiPort);
+            //ElectionsManager stub = (ElectionsManager) UnicastRemoteObject.exportObject(this.electionsManager, 0);
+            registry.rebind("ElectionsRMI", this.electionsManager);
+            System.out.println("RMI stub initialized on port " + rmiPort);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 
     @GetMapping("/elections")
