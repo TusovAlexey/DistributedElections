@@ -1,6 +1,10 @@
 package ElectionsServer.models;
+import java.io.Serializable;
 
-public class Candidate {
+public class Candidate implements Serializable {
+    //private static final long serialVersionUID = 1L;
+
+
     private String name;
     private Integer index;
     private Integer electors;

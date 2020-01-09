@@ -101,6 +101,9 @@ public class ElectionsCommitteeClient {
                             .lookup("ElectionsRMI");
                     server.setRemoteExecutor(remoteExec);
                     server.setStatus(StateServer.ServerStatus.ALIVE);
+                    System.out.println("server " + server.getIp() + "status is " + server.getStatus());
+                    System.out.println("+++++++++++++++++++++++++++++++++");
+                    break;
                 } catch (RemoteException | NotBoundException e) {
                     e.printStackTrace();
                     --attempts;
@@ -120,7 +123,8 @@ public class ElectionsCommitteeClient {
 
     void systemUp(){
         for(StateServer server: this.servers.values()){
-            ElectionsCommitteeInstruction systemUpRequest = new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.SYSTEM_UP);
+            ElectionsCommitteeInstruction systemUpRequest =
+                    new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.SYSTEM_UP);
             ElectionsCommitteeInstruction systemUpResponse = server.remoteRMI(systemUpRequest);
             if(systemUpResponse.getInstructionStatus()== ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
                 System.out.println("Systems in server " + server.getIp() + " is up");
@@ -132,7 +136,8 @@ public class ElectionsCommitteeClient {
 
     void startElections(){
         for(StateServer server: this.servers.values()){
-            ElectionsCommitteeInstruction systemUpRequest = new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.START_ELECTIONS);
+            ElectionsCommitteeInstruction systemUpRequest =
+                    new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.START_ELECTIONS);
             ElectionsCommitteeInstruction systemUpResponse = server.remoteRMI(systemUpRequest);
             if(systemUpResponse.getInstructionStatus()== ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
                 System.out.println("Elections in server " + server.getIp() + " is started");
@@ -141,6 +146,7 @@ public class ElectionsCommitteeClient {
                     System.out.println("Elections in server " + server.getIp() + " is ended");
                 }else {
                     System.out.println("Server " + server.getIp() + " is down, unable to proceed instruction");
+                    System.out.println("Server " + server.getIp() + " Status is  " + server.getStatus());
                 }
             }
         }
@@ -148,7 +154,8 @@ public class ElectionsCommitteeClient {
 
     void stopElections(){
         for(StateServer server: this.servers.values()){
-            ElectionsCommitteeInstruction systemUpRequest = new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.STOP_ELECTIONS);
+            ElectionsCommitteeInstruction systemUpRequest =
+                    new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.STOP_ELECTIONS);
             ElectionsCommitteeInstruction systemUpResponse = server.remoteRMI(systemUpRequest);
             if(systemUpResponse.getInstructionStatus()== ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
                 System.out.println("Elections in server " + server.getIp() + " is started");
@@ -165,9 +172,12 @@ public class ElectionsCommitteeClient {
     HashMap<Integer, Candidate> getStateResults(String state){
         HashMap<Integer, Candidate> result = new HashMap<>();
         for(StateServer server: this.servers.values().stream().filter(s -> s.getState().equals(state)).collect(Collectors.toSet())){
-            ElectionsCommitteeInstruction getResultsRequest = new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.GET_RESULTS);
+            ElectionsCommitteeInstruction getResultsRequest =
+                    new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.GET_RESULTS);
+
             ElectionsCommitteeInstruction getResultsResponse = server.remoteRMI(getResultsRequest);
-            if(getResultsResponse.getInstructionStatus()== ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
+
+            if(getResultsResponse.getInstructionStatus() == ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
                 System.out.println("Got results from state " + server.getState());
                 result = new HashMap<>(getResultsResponse.getResults());
                 return result;
@@ -178,6 +188,7 @@ public class ElectionsCommitteeClient {
     }
 
     void getResults(){
+        System.out.println("============== RESULTS ======================");
         Set<String> states = this.servers.values().stream().map(StateServer::getState).collect(Collectors.toSet());
         for(String state : states){
             HashMap<Integer, Candidate> stateResults = this.getStateResults(state);
@@ -194,6 +205,7 @@ public class ElectionsCommitteeClient {
         for (Candidate candidate: this.candidates.values()){
             System.out.println(candidate);
         }
+        System.out.println("============== END ======================");
     }
 
 

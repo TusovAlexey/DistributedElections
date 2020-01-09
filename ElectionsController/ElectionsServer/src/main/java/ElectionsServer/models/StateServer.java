@@ -49,6 +49,7 @@ public class StateServer {
     public ElectionsCommitteeInstruction remoteRMI(ElectionsCommitteeInstruction instructionRequest){
         if (this.status!=ServerStatus.ALIVE){
             instructionRequest.setInstructionStatus(ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.ERROR);
+            System.out.println("+++++++++++++++++  this.status!=ServerStatus.ALIVE, Status is " + this.status + "++++++++++++++++");
             return instructionRequest;
         }
         try {
@@ -56,6 +57,8 @@ public class StateServer {
         } catch (RemoteException e) {
             this.status = ServerStatus.DIED;
             instructionRequest.setInstructionStatus(ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.ERROR);
+            System.out.println("+++++++++++++++++  RemoteException   ++++++++++++++++");
+            e.printStackTrace();
             return instructionRequest;
         }
     }

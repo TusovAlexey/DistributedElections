@@ -53,7 +53,9 @@ public class ElectionsCommitteeInstruction implements ElectionsCommitteeTask<Ele
     }
 
     public ElectionCommitteeInstructionType getInstructionType(){return this.instructionType;}
+
     public ElectionsCommitteeInstructionStatus getInstructionStatus(){return this.instructionStatus;}
+
     public HashMap<Integer, Candidate> getResults(){return this.candidatesResults;}
 
     @Override

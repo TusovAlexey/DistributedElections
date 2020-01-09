@@ -235,17 +235,18 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         this.startGRPCServer();
         this.zookeeperClient = new ElectionsZookeeperClient(this.hostName, this.stateName);
         this.zookeeperClient.start();
-        this.systemUp= true;
-        this.electionsOpen = true;
+        //this.systemUp= true;
+        //this.electionsOpen = true;
         //this.startRmiServer();
 
         System.out.println("Elections Manager initialization completed!");
         System.out.println("Waiting until all servers are ready, committee should send system up instruction");
         while (!systemUp){
             try {
+                System.out.println("Waiting...");
                 TimeUnit.SECONDS.sleep(1);
             }catch (InterruptedException e) {
-                e.printStackTrace();
+                //e.printStackTrace();
                 System.out.println("Initialization failed");
                 return;
             }
@@ -575,6 +576,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         ElectionsCommitteeInstruction instruction = (ElectionsCommitteeInstruction)task;
         ElectionsCommitteeInstruction.ElectionCommitteeInstructionType instructionType = instruction.getInstructionType();
         if(instructionType.equals(START_ELECTIONS)){
+            System.out.println("START_ELECTIONS");
             this.electionsOpen = true;
             return task.responseStartElections();
         }else if(instructionType.equals(STOP_ELECTIONS)){
@@ -584,6 +586,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
             HashMap<Integer, Candidate> candidateResults = getResults();
             return task.responseGetResults(candidateResults);
         }else if(instructionType.equals(SYSTEM_UP)){
+            System.out.println("SYSTEM_UP");
             this.systemUp = true;
             return task.responseSystemUp();
         }

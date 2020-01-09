@@ -13,14 +13,20 @@ public class ElectionsCommitteeClientMain {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        Integer attempts = 10;
+        Integer attempts = 1000;
         ElectionsCommitteeClient client = new ElectionsCommitteeClient();
         client.systemUp();
         client.startElections();
-
+        System.out.println("Committee started vote process!");
         while (attempts>0){
             client.getResults();
             --attempts;
+
+            try {
+                TimeUnit.SECONDS.sleep(10);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
         client.stopElections();
