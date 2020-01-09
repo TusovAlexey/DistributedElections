@@ -231,7 +231,8 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
         this.parseServersFile();
         this.parseCandidatesFile();
         this.startGRPCServer();
-        this.zookeeperClient = new ElectionsZookeeperClient();
+        this.zookeeperClient = new ElectionsZookeeperClient(this.hostName, this.stateName);
+        this.zookeeperClient.start();
         this.systemUp= true;
         this.electionsOpen = true;
         //this.startRmiServer();
@@ -301,7 +302,7 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
     }
 
     private void sendAsyncGRpcRequest(StateServer server, ElectionsProtoRequest request){
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(server.getIp(), Integer.parseInt(server.getGRpcPort())).usePlaintext().build();
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(server.getIp(), Integer.parseInt(server.getGRpcPort())).usePlaintext(true).build();
         electionsProtoServiceGrpc.electionsProtoServiceStub stub = electionsProtoServiceGrpc.newStub(channel);
         StreamObserver<ElectionsProtoResponse> responseObserver = new StreamObserver<ElectionsProtoResponse>() {
             @Override
@@ -324,7 +325,7 @@ public class ElectionsManager implements ElectionsCommitteeInstructionRemote {
     }
 
     private ElectionsProtoResponse sendSyncGRpcRequest(StateServer server, ElectionsProtoRequest request){
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(server.getIp(), Integer.parseInt(server.getGRpcPort())).usePlaintext().build();
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(server.getIp(), Integer.parseInt(server.getGRpcPort())).usePlaintext(true).build();
         electionsProtoServiceGrpc.electionsProtoServiceBlockingStub stub = electionsProtoServiceGrpc.newBlockingStub(channel);
         //System.out.println("Sending sync gRPC request to: " + server.getIp());
         ElectionsProtoResponse response = stub.electionsProtoHandler(request);

@@ -1,6 +1,6 @@
 package ElectionsCommittee;
 
-import jline.console.ConsoleReader;
+//import jline.console.ConsoleReader;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -26,31 +26,31 @@ public class ElectionsCommitteeClientMain {
         client.stopElections();
     }
 
-    private void interactiveShell(){
-        ConsoleReader r = null;
-        try {
-            r = new ConsoleReader();
-            while (true)
-            {
-                r.println("Good morning");
-                r.flush();
-
-                String input = r.readLine("prompt>");
-
-                if ("clear".equals(input))
-                    r.clearScreen();
-                else if ("exit".equals(input))
-                    return;
-                else
-                    System.out.println("You typed '" + input + "'.");
-
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-
-    }
+    //private void interactiveShell(){
+    //    ConsoleReader r = null;
+    //    try {
+    //        r = new ConsoleReader();
+    //        while (true)
+    //        {
+    //            r.println("Good morning");
+    //            r.flush();
+//
+    //            String input = r.readLine("prompt>");
+//
+    //            if ("clear".equals(input))
+    //                r.clearScreen();
+    //            else if ("exit".equals(input))
+    //                return;
+    //            else
+    //                System.out.println("You typed '" + input + "'.");
+//
+    //        }
+    //    } catch (IOException e) {
+    //        e.printStackTrace();
+    //    }
+//
+//
+    //}
 
 
 

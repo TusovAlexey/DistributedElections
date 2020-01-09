@@ -4,11 +4,37 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 
+/**
+ * Zookeeper ZNodes structure:
+ *
+ *                         States(root)
+ *                          /         \
+ *                        /
+ *                     state0
+ *                    /      \
+ *                  /         \
+ *            live_nodes    all_nodes
+ *               /  \
+ *             /     \
+ *        server0  server1 ...
+ *
+ *
+ *
+ *
+ */
+
+
+
+
 public class ElectionsZookeeperClient {
+    private String stateName;
+    private String clientName;
     private CuratorFramework client;
     private String serverName;
 
-    public ElectionsZookeeperClient(){
+    public ElectionsZookeeperClient(String clientName, String stateName){
+        this.stateName = stateName;
+        this.clientName = clientName;
         this.serverName = System.getenv("DOCKER_ZOOKEEPER");
         this.client = null;
         try {
@@ -19,10 +45,29 @@ public class ElectionsZookeeperClient {
             // The simplest way to get a CuratorFramework instance. This will use default values.
             // The only required arguments are the connection string and the retry policy
             this.client = CuratorFrameworkFactory.newClient(this.serverName, retryPolicy);
+
+            CuratorFramework client = CuratorFrameworkFactory.builder().connectString(this.serverName)
+                    .sessionTimeoutMs(10000)
+                    .connectionTimeoutMs(10000)
+                    .retryPolicy(new ExponentialBackoffRetry(1000, 30, 5000))
+                    .build();
+
+
+            System.out.println("Created Zookeeper client to server: " + this.serverName);
         } catch (Exception e) {
             e.printStackTrace();
             return;
         }
-        System.out.println("Created Zookeeper client to server: " + this.serverName);
+
     }
+
+    public void start(){
+        this.client.start();
+        System.out.println("Started Zookeeper client connection to server: " + this.serverName);
+    }
+
+    public void stop(){this.client.close();}
+
+
+
 }
