@@ -37,6 +37,9 @@ public class ElectionsController {
         } catch (RemoteException e) {
             e.printStackTrace();
         }
+
+        //electionsManager.syncSystemUp();
+        //electionsManager.waitElectionsOpen();
     }
 
     @GetMapping("/elections")
@@ -44,12 +47,22 @@ public class ElectionsController {
 
     @PostMapping("/elections")
     String newVote(@RequestBody Voter newVote){
-        return this.electionsManager.addVoteFromREST(newVote);
+        try {
+            return this.electionsManager.proceedVoteFromClient(newVote);
+        }catch (Exception e){
+            e.printStackTrace();
+            return "";
+        }
     }
 
     @PutMapping("/elections/{id}")
     String replaceVote(@RequestBody Voter newVote, @PathVariable Integer id){
-        return this.electionsManager.addVoteFromREST(newVote);
+        try {
+            return this.electionsManager.proceedVoteFromClient(newVote);
+        }catch (Exception e){
+            e.printStackTrace();
+            return "";
+        }
     }
 
 }

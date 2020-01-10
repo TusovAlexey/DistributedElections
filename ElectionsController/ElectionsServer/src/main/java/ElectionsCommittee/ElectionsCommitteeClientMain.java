@@ -9,7 +9,7 @@ public class ElectionsCommitteeClientMain {
     public static void main(String args[]){
         System.out.println("Committee client started");
         try {
-            TimeUnit.SECONDS.sleep(10);
+            TimeUnit.SECONDS.sleep(100);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

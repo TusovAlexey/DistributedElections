@@ -18,30 +18,46 @@ public class StateServer {
     }
 
     private String state;
-    private String ip;
-    private String port;
+    private String hostName;
+    private String RESTport;
     private String GRpcPort;
-    private String rmiPort;
+    private String RMIport;
     private ServerStatus status;
     private UpdateStatus updateStatus;
     private ElectionsCommitteeInstructionRemote remoteExecutor;
+    private boolean isLeader;
+    private String zooKeeperServer;
 
-    public StateServer(String state, String ip, String port, String GRpcPort, String rmiPort){
+    public StateServer(String state, String ip, String RESTport, String GRpcPort, String rmiPort, String zooKeeperServer){
         this.state = state;
-        this.ip = ip;
-        this.port = port;
+        this.hostName = ip;
+        this.RESTport = RESTport;
         this.GRpcPort = GRpcPort;
-        this.rmiPort = rmiPort;
+        this.RMIport = rmiPort;
+        this.isLeader = false;
+        this.zooKeeperServer = zooKeeperServer;
     }
 
+    public StateServer(String hostName){
+        this.hostName = hostName;
+        this.state = "Unassigned";
+        this.RESTport = "Unassigned";
+        this.RMIport = "Unassigned";
+        this.status = ServerStatus.ALIVE;
+        this.isLeader = false;
+        this.zooKeeperServer = "Unassigned";
+    }
+
+    public String getZooKeeperServer(){return this.zooKeeperServer;}
+    public void setZooKeeperServer(String zooKeeperServer){this.zooKeeperServer = zooKeeperServer;}
     public String getGRpcPort(){return this.GRpcPort;}
     public void setGRpcPort(String GRpcPort){this.GRpcPort=GRpcPort;}
     public ServerStatus getStatus(){return this.status;}
     public void setStatus(ServerStatus status){this.status=status;}
     public UpdateStatus getUpdateStatus(){return this.updateStatus;}
     public void setUpdateStatus(UpdateStatus updateStatus) {this.updateStatus = updateStatus;}
-    public String getRmiPort(){return this.rmiPort;}
-    public void setRmiPort(String rmiPort){this.rmiPort = rmiPort;}
+    public String getRmiPort(){return this.RMIport;}
+    public void setRmiPort(String rmiPort){this.RMIport = rmiPort;}
     public ElectionsCommitteeInstructionRemote getRemoteExecutor(){return this.remoteExecutor;}
     public void setRemoteExecutor(ElectionsCommitteeInstructionRemote remoteExecutor){
         this.remoteExecutor = remoteExecutor;
@@ -63,28 +79,45 @@ public class StateServer {
         }
     }
 
+    public boolean isLeader(){return this.isLeader;}
+
+    public void takeLeadership(){this.isLeader = true;}
+
+    public void stopLeadership(){this.isLeader = false;}
 
     public StateServer setState(String state){
         this.state = state;
         return this;
     }
 
-    public StateServer setIp(String ip){
-        this.ip = ip;
+    public StateServer setIp(String hostName){
+        this.hostName = hostName;
+        return this;
+    }
+
+    public StateServer setHostName(String hostName){
+        this.hostName = hostName;
         return this;
     }
 
     public StateServer setPort(String port){
-        this.port = port;
+        this.RESTport = port;
+        return this;
+    }
+
+    public StateServer setRESTport(String port){
+        this.RESTport = port;
         return this;
     }
 
     public String getState(){return this.state;}
-    public String getIp(){return this.ip;}
-    public String getPort(){return this.port;}
+    public String getIp(){return this.hostName;}
+    public String getHostName(){return this.hostName;}
+    public String getPort(){return this.RESTport;}
+    public String getRESTport(){return this.RESTport;}
 
     @Override
     public String toString() {
-        return ip + ":" + port;
+        return hostName;
     }
 }

@@ -35,7 +35,7 @@ public class ElectionsCommitteeClient {
             while ((line = br.readLine()) != null){
                 String[] serverCsv = line.split(csvSplitBy);
                 // Servers csv indexes- 0:state_name 1:ip(hostname) 2:port(REST) 3:gRPC port 4: RMI port
-                StateServer server = new StateServer(serverCsv[0], serverCsv[1], serverCsv[2], serverCsv[3], serverCsv[4]);
+                StateServer server = new StateServer(serverCsv[0], serverCsv[1], serverCsv[2], serverCsv[3], serverCsv[4], serverCsv[5]);
                 this.servers.put(server.getIp(),server);
             }
         }catch (FileNotFoundException e){

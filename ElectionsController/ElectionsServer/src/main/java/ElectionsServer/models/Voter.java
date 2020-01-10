@@ -34,4 +34,8 @@ public class Voter {
     public Integer getVote(){return this.vote;}
     public String getState(){return this.state;}
 
+    @Override
+    public String toString() {
+        return "{Id: " + id + ", State: " + state + ", Vote: " + vote + "}";
+    }
 }
