@@ -9,11 +9,9 @@ import org.apache.curator.framework.recipes.cache.TreeCacheListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.data.Stat;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -22,10 +20,10 @@ import java.util.concurrent.TimeUnit;
  *                                         /(root)
  *                                       /
  *                                     /
- *                      --------state0-------------------------------
- *                    /          |       \                \          \
- *                  /           |         \                \          \
- *            live_nodes    all_nodes    leader_selection  update    leader
+ *                      --------state0------------------------------------------
+ *                    /          |       \                \          \          \
+ *                  /           |         \                \          \          \
+ *            live_nodes    all_nodes    leader_selection  update   update_out   leader
  *               /  \
  *             /     \
  *        server0  server1 ...
@@ -39,6 +37,8 @@ import java.util.concurrent.TimeUnit;
 
 
 public class ElectionsZookeeperClient {
+    private static final boolean dbgEnable = true;
+
     private enum UpdateState{
         NOT_ASSIGNED,
         PENDING,
@@ -89,37 +89,50 @@ public class ElectionsZookeeperClient {
         this.electionService = new ElectionsLeaderElectionZKService(client, "/leader_selection", this.server);
     }
 
-    public void start() throws Exception {
-        this.client.start();
-        System.out.println("Started Zookeeper client connection to server: " + this.server.getIp());
+    private void dbg(String msg){
+        if(dbgEnable){
+            System.out.println("[ -- DBG - "+this.server.getHostName()+" --] " + msg);
+        }
+    }
 
-        System.out.println("Assigning listeners");
-        addAllNodesListener(client, "/" + this.server.getState() + "/all_nodes");
-        addLiveNodesListener(client, "/" + this.server.getState() + "/live_nodes");
-        addUpdateListener(client, "/" + this.server.getState() + "/update");
-        System.out.println("Listeners started");
-
-        System.out.println("Adding persistent node to all_nodes root");
+    private void createSubRootNodes() throws Exception {
         try {
             this.client.create()
                     .creatingParentsIfNeeded()
                     .withMode(CreateMode.PERSISTENT)
-                    .forPath("/" + this.server.getState() + "/all_nodes/" + this.server.getHostName());
-        } catch (Exception e) {
-            System.out.println("Failed to create persistent node");
-            e.printStackTrace();
-        }
-
-        try {
+                    .forPath("/" + this.server.getState() + "/all_nodes");
             this.client.create()
                     .creatingParentsIfNeeded()
-                    .withMode(CreateMode.EPHEMERAL)
-                    .forPath("/" + this.server.getState() + "/live_nodes/" + this.server.getHostName());
-        } catch (Exception e) {
-            e.printStackTrace();
+                    .withMode(CreateMode.PERSISTENT)
+                    .forPath("/" + this.server.getState() + "/live_nodes");
+            this.client.create()
+                    .creatingParentsIfNeeded()
+                    .withMode(CreateMode.PERSISTENT)
+                    .forPath("/" + this.server.getState() + "/update");
+            this.client.create()
+                    .creatingParentsIfNeeded()
+                    .withMode(CreateMode.PERSISTENT)
+                    .forPath("/" + this.server.getState() + "/update_out");
+        }catch (Exception e){
+            dbg("Failed to create sub root nodes");
+            throw e;
         }
+    }
 
+    public void start() throws Exception {
+        this.client.start();
+        dbg("Starting Zookeeper client connection");
+
+        dbg("Assigning listeners");
+        addAllNodesListener(client, "/" + this.server.getState() + "/all_nodes");
+        addLiveNodesListener(client, "/" + this.server.getState() + "/live_nodes");
+        addUpdateListener(client, "/" + this.server.getState() + "/update");
+        dbg("Listeners started");
+
+        dbg("Adding persistent node to all_nodes root");
+        createSubRootNodes();
         this.electionService.start();
+        dbg("Zookeeper client connection started");
     }
 
     public void stop(){
@@ -138,6 +151,15 @@ public class ElectionsZookeeperClient {
                 .forPath(path);
     }
 
+    private void deleteNode(String path) throws Exception {
+        try {
+            client.delete().guaranteed().forPath(path);
+        }catch (Exception e){
+            dbg("Failed to delete node " + path);
+            throw e;
+        }
+    }
+
     private void createNodeWithData(CreateMode mode, String path, String data) throws Exception {
         this.client.create()
                 .creatingParentsIfNeeded()
@@ -145,46 +167,91 @@ public class ElectionsZookeeperClient {
                 .forPath(path, data.getBytes());
     }
 
-    public boolean atomicBroadcast(String initiatorName){
-        this.updateState = UpdateState.PENDING;
-        try {
-            createNodeWithData(CreateMode.EPHEMERAL,
-                    "/" + this.server.getState() + "/update/" + this.server.getHostName(),
-                    initiatorName);
-        } catch (Exception e) {
-            this.updateState = UpdateState.NOT_ASSIGNED;
-            return false;
-        }
+    //  "/<state>/<stateSubTreeNode>/<hostname>"
+    private String pathToServerName(String stateSubTreeNode){
+        return "/" + this.server.getState() + "/" + stateSubTreeNode + "/" + this.server.getHostName();
+    }
 
-        System.out.println("Waiting for all servers to add node");
+    //  "/<state>/<stateSubTreeNode>"
+    private String pathCreate(String stateSubTreeNode){
+        return "/" + this.server.getState() + "/" + stateSubTreeNode;
+    }
+
+    //  "/<state>/update"
+    private String nodeUpdatePath(){
+        return pathCreate("update");
+    }
+
+    //  "/<state>/live_nodes"
+    private String liveNodesPath(){
+        return pathCreate("live_nodes");
+    }
+
+    private List<String> getNodes(String rootSubTree){
         try {
-            while (this.getAtomicBroadcastPendingServers().size()==this.getLiveServers().size()){}
+            return client.getChildren().forPath("/" + this.server.getState() + "/" + rootSubTree);
         }catch (Exception e){
+            dbg("Failed to get nodes from " + rootSubTree);
+            return new ArrayList<>();
+        }
+    }
 
+    private void setNodeData(String path, String data) throws Exception {
+        try {
+            client.setData().forPath(path, data.getBytes());
+        }catch (Exception e){
+            dbg("Failed to set data for " + path);
+            throw e;
+        }
+    }
+
+    private String getNodeData(String path) throws Exception {
+        byte[] bytes = null;
+        try{
+            bytes = client.getData().forPath(path);
+        }catch (Exception e){
+            dbg("Failed to get data from " + path);
+            throw e;
+        }
+        if(bytes!=null){
+            return new String(bytes);
         }
 
-        //while(this.updateState.equals(UpdateState.PENDING)){}
-        System.out.println("Update status is " + this.updateState);
-        if(this.updateState.equals(UpdateState.SUCCESS)){
-            this.updateState = UpdateState.NOT_ASSIGNED;
-            try {
-                client.delete().guaranteed().forPath("/" + this.server.getState() + "/update/" + this.server.getHostName());
+        return "";
+    }
 
-                while (client.getChildren().forPath("/" + this.server.getState() + "/update").size() > 0){}
+    public boolean atomicBroadcast(String initiatorName){
+        try {
+            // Wait until update_out got empty
+            dbg("Waiting until update_out got empty");
+            while (getNodes("update_out").size()>0){}
 
-            }catch (Exception e){
-                return false;
-            }
-            return true;
-        }else {
-            this.updateState = UpdateState.NOT_ASSIGNED;
-            //try {
-            //    client.delete().guaranteed().forPath("/" + this.server.getState() + "/update/" + this.server.getHostName());
-//
-            //    while (client.getChildren().forPath("/" + this.server.getState() + "/update").size() > 0){}
-            //}catch (Exception ignored){}
+            // Update "update" root node data to PENDING
+            setNodeData(pathCreate("update_out"), "PENDING");
+
+            // Add myself to as node in "update" subtree
+            createNodeWithData(CreateMode.EPHEMERAL, pathToServerName("update"), initiatorName);
+
+            // Wait until "update"s root node data is PENDING
+            dbg("Waiting until update root node contains PENDING");
+            while (getNodeData(pathToServerName(nodeUpdatePath())).equals("PENDING")){}
+
+            // Remove from "update" and go to "update_out"
+            deleteNode(pathToServerName("update"));
+            createNode(CreateMode.EPHEMERAL, pathToServerName("update_out"));
+
+            // Wait until "update" have nodes
+            dbg("Waiting until all servers exit from update");
+            while (getNodes(nodeUpdatePath()).size()>0){}
+
+            // Remove from "update_out" and back to business
+            deleteNode(pathToServerName("update_out"));
+        } catch (Exception e) {
+            dbg("Atomic broadcast failed");
             return false;
         }
+
+        return true;
     }
 
     public String getStateLeader(String state) throws Exception {
@@ -196,6 +263,16 @@ public class ElectionsZookeeperClient {
         return getStateLeader(server.getState());
     }
 
+    private void dbgTreeCache(String rootTree, TreeCacheEvent treeCacheEvent){
+        if(treeCacheEvent.getData()!=null && treeCacheEvent.getData().getData()!=null){
+            dbg(rootTree + "=>" + treeCacheEvent.getType() + "  " + treeCacheEvent.getData().getPath() + "  " + new String(treeCacheEvent.getData().getData()));
+        }else if(treeCacheEvent.getData()!=null){
+            dbg(rootTree + "=>" + treeCacheEvent.getType() + "  " + treeCacheEvent.getData().getPath());
+        }else {
+            dbg(rootTree + "=>" + treeCacheEvent.getType());
+        }
+    }
+
     // Listener for sub tree /<state>/all_nodes/...
     // Where registered persistent nodes for new added servers
     private void addAllNodesListener(CuratorFramework curatorFramework, String path) throws Exception {
@@ -203,39 +280,40 @@ public class ElectionsZookeeperClient {
         TreeCacheListener listener = new TreeCacheListener() {
             @Override
             public void childEvent(CuratorFramework curatorFramework, TreeCacheEvent treeCacheEvent) throws Exception {
-                if(treeCacheEvent.getData()!=null && treeCacheEvent.getData().getData()!=null){
-                    System.out.println("All listener " + treeCacheEvent.getType() + "  " + treeCacheEvent.getData().getPath() + "  " + Arrays.toString((byte[])treeCacheEvent.getData().getData()));
-                }else if(treeCacheEvent.getData()!=null){
-                    System.out.println("All listener " + treeCacheEvent.getType() + "  " + treeCacheEvent.getData().getPath());
-                }else {
-                    System.out.println("All listener " + treeCacheEvent.getType());
-                }
-
-                if(treeCacheEvent.getType().equals(TreeCacheEvent.Type.NODE_ADDED)){
-                    String path = treeCacheEvent.getData().getPath();
-                    String znode = "";
-                    int i = path.lastIndexOf("/");
-                    if (i < 0) {
-                        znode = path;
-                    } else {
-                        znode = i + 1 >= path.length() ? "" : path.substring(i + 1);
-                    }
-
-                    if(!clusterServers.keySet().contains(znode)){
+                dbgTreeCache("All nodes listener", treeCacheEvent);
+                switch (treeCacheEvent.getType()){
+                    case NODE_REMOVED:{
+                        dbg(treeCacheEvent.getData().getPath() + " REMOVED");
                         return;
                     }
-
-                    switch (treeCacheEvent.getType()){
-                        case NODE_ADDED: {
-                            clusterServers.put(znode, allServers.get(znode));
-                            break;
-                        }
-                        default:
-                            System.out.println("Unhandled event type: " + treeCacheEvent.getType().name() + "in listener" +
-                                    " assigned to all_nodes root");
+                    case NODE_UPDATED:{
+                        dbg(treeCacheEvent.getData().getPath() + " UPDATED");
+                        return;
+                    }
+                    case NODE_ADDED:{
+                        dbg(treeCacheEvent.getData().getPath() + " ADDED");
+                        return;
+                    }
+                    case INITIALIZED:{
+                        dbg(treeCacheEvent.getData().getPath() + " INITIALIZED");
+                        return;
+                    }
+                    case CONNECTION_LOST:{
+                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION LOST");
+                        return;
+                    }
+                    case CONNECTION_SUSPENDED:{
+                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION SUSPEND");
+                        return;
+                    }
+                    case CONNECTION_RECONNECTED:{
+                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION RECONNECTED");
+                        return;
+                    }
+                    default:{
+                        dbg("All nodes listener received undefined type");
                     }
                 }
-
             }
         };
 
@@ -251,41 +329,38 @@ public class ElectionsZookeeperClient {
         TreeCacheListener listener = new TreeCacheListener() {
             @Override
             public void childEvent(CuratorFramework curatorFramework, TreeCacheEvent treeCacheEvent) throws Exception {
-                if(treeCacheEvent.getData()!=null && treeCacheEvent.getData().getData()!=null){
-                    System.out.println("Live listener " + treeCacheEvent.getType() + "  " + treeCacheEvent.getData().getPath() + "  " + Arrays.toString((byte[])treeCacheEvent.getData().getData()));
-                }else if(treeCacheEvent.getData()!=null){
-                    System.out.println("Live listener " + treeCacheEvent.getType() + "  " + treeCacheEvent.getData().getPath());
-                }else {
-                    System.out.println("Live listener " + treeCacheEvent.getType());
-                }
-                if(treeCacheEvent.getType().equals(TreeCacheEvent.Type.NODE_ADDED) || treeCacheEvent.getType().equals(TreeCacheEvent.Type.NODE_REMOVED)){
-                    String path = treeCacheEvent.getData().getPath();
-                    String znode = "";
-                    int i = path.lastIndexOf("/");
-                    if (i < 0) {
-                        znode = path;
-                    } else {
-                        znode = i + 1 >= path.length() ? "" : path.substring(i + 1);
-                    }
-
-                    if(!clusterServers.keySet().contains(znode)){
+                dbgTreeCache("Live nodes listener", treeCacheEvent);
+                switch (treeCacheEvent.getType()){
+                    case NODE_REMOVED:{
+                        dbg(treeCacheEvent.getData().getPath() + " REMOVED");
                         return;
                     }
-
-                    //String znode = ZKPaths.getNodeFromPath(treeCacheEvent.getData().getPath());
-                    switch (treeCacheEvent.getType()){
-                        case NODE_ADDED: {
-                            clusterServers.get(znode).setStatus(StateServer.ServerStatus.ALIVE);
-                            break;
-                        }
-                        case NODE_REMOVED: {
-                            // TODO add use case when last waited server fall
-                            clusterServers.get(znode).setStatus(StateServer.ServerStatus.DIED);
-                            break;
-                        }
-                        default:
-                            System.out.println("Unhandled event type: " + treeCacheEvent.getType().name() + " in listener" +
-                                    " assigned to live_nodes root");
+                    case NODE_UPDATED:{
+                        dbg(treeCacheEvent.getData().getPath() + " UPDATED");
+                        return;
+                    }
+                    case NODE_ADDED:{
+                        dbg(treeCacheEvent.getData().getPath() + " ADDED");
+                        return;
+                    }
+                    case INITIALIZED:{
+                        dbg(treeCacheEvent.getData().getPath() + " INITIALIZED");
+                        return;
+                    }
+                    case CONNECTION_LOST:{
+                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION LOST");
+                        return;
+                    }
+                    case CONNECTION_SUSPENDED:{
+                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION SUSPEND");
+                        return;
+                    }
+                    case CONNECTION_RECONNECTED:{
+                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION RECONNECTED");
+                        return;
+                    }
+                    default:{
+                        dbg("All nodes listener received undefined type");
                     }
                 }
 
@@ -301,6 +376,17 @@ public class ElectionsZookeeperClient {
         return new HashSet<>(list1).equals(new HashSet<>(list2));
     }
 
+    private String getNodeFromPath(String path){
+        String znode = "";
+        int i = path.lastIndexOf("/");
+        if (i < 0) {
+            znode = path;
+        } else {
+            znode = i + 1 >= path.length() ? "" : path.substring(i + 1);
+        }
+        return znode;
+    }
+
     // Listener for sub tree /<state>/update/...
     // Where registered EPHEMERAL nodes for each server (including leader) which got last update info from leader
     // When set of children nodes equal to set of children nodes under "live_nodes" it means that the cluster updated
@@ -310,56 +396,51 @@ public class ElectionsZookeeperClient {
         TreeCacheListener listener = new TreeCacheListener() {
             @Override
             public void childEvent(CuratorFramework curatorFramework, TreeCacheEvent treeCacheEvent) throws Exception {
-                if(treeCacheEvent.getData()!=null && treeCacheEvent.getData().getData()!=null){
-                    System.out.println("Update listener " + treeCacheEvent.getType() + "  " + treeCacheEvent.getData().getPath() + "  " + Arrays.toString((byte[])treeCacheEvent.getData().getData()));
-                }else if(treeCacheEvent.getData()!=null){
-                    System.out.println("Update listener " + treeCacheEvent.getType() + "  " + treeCacheEvent.getData().getPath());
-                }else {
-                    System.out.println("Update listener " + treeCacheEvent.getType());
-                }
-                if(treeCacheEvent.getType().equals(TreeCacheEvent.Type.NODE_ADDED) || treeCacheEvent.getType().equals(TreeCacheEvent.Type.NODE_REMOVED)){
-                    String path = treeCacheEvent.getData().getPath();
-                    String znode ="";
-                    int i = path.lastIndexOf("/");
-                    if (i < 0) {
-                        znode = path;
-                    } else {
-                        znode = i + 1 >= path.length() ? "" : path.substring(i + 1);
+                dbgTreeCache("Update nodes listener", treeCacheEvent);
+                switch (treeCacheEvent.getType()){
+                    case NODE_REMOVED:{
+                        dbg(treeCacheEvent.getData().getPath() + " REMOVED");
+                        String path = treeCacheEvent.getData().getPath();
+
+                        if (getNodeFromPath(treeCacheEvent.getData().getPath()).equals(getLeader())
+                            && getNodeData(pathToServerName(nodeUpdatePath())).equals("PENDING")){
+                            dbg("Leader went down before commit, update should be un-validated");
+                            setNodeData(pathCreate("update_out"), "ERROR");
+                        }
+                        return;
                     }
-
-
-                    switch (treeCacheEvent.getType()){
-                        case NODE_ADDED: {
-                            if(listEqualsIgnoreOrder(curatorFramework.getChildren().forPath("/" + server.getState() + "/update"),
-                                    curatorFramework.getChildren().forPath("/" + server.getState() + "/live_nodes"))){
-                                // All servers in the cluster know update info, can commit
-                                updateState = UpdateState.SUCCESS;
-                                return;
-                            }
-
+                    case NODE_UPDATED:{
+                        dbg(treeCacheEvent.getData().getPath() + " UPDATED");
+                        return;
+                    }
+                    case NODE_ADDED:{
+                        dbg(treeCacheEvent.getData().getPath() + " ADDED");
+                        if(getNodes(nodeUpdatePath()).size() == getNodes(liveNodesPath()).size()){
+                            dbg("All live nodes received update, changing state to COMMIT");
+                            setNodeData(pathCreate("update_out"), "COMMIT");
                         }
-                        case NODE_REMOVED: {
-                            //if(updateState.equals(UpdateState.PENDING)){
-                            //    // We are waiting for update completion and some server quit
-                            //    if(treeCacheEvent.getData().getData().equals(znode)){
-                            //        // Initiator quit - bad news
-                            //        updateState = UpdateState.ERROR;
-                            //    }else if(clusterServers.get(Arrays.toString(treeCacheEvent.getData().getData())).isLeader()){
-                            //        // Leader quit - bad news
-                            //        updateState = UpdateState.ERROR;
-                            //    }
-                            //    // Some other server quit, back to business
-                            //}
-                            updateState = UpdateState.SUCCESS;
-                            return;
-                        }
-                        default:
-                            System.out.println("Unhandled event type: " + treeCacheEvent.getType().name() + "in listener" +
-                                    " assigned to live_nodes root");
+                        return;
+                    }
+                    case INITIALIZED:{
+                        dbg(treeCacheEvent.getData().getPath() + " INITIALIZED");
+                        return;
+                    }
+                    case CONNECTION_LOST:{
+                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION LOST");
+                        return;
+                    }
+                    case CONNECTION_SUSPENDED:{
+                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION SUSPEND");
+                        return;
+                    }
+                    case CONNECTION_RECONNECTED:{
+                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION RECONNECTED");
+                        return;
+                    }
+                    default:{
+                        dbg("All nodes listener received undefined type");
                     }
                 }
-
-
 
             }
         };

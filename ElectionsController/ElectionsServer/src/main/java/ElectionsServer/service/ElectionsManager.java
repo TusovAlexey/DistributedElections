@@ -147,8 +147,8 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         stub.electionsProtoHandler(request, responseObserver);
     }
 
-    private ElectionsProtoResponse sendSyncGRpcRequest(StateServer server, ElectionsProtoRequest request){
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(server.getIp(), Integer.parseInt(server.getGRpcPort())).usePlaintext(true).build();
+    private ElectionsProtoResponse sendSyncGRpcRequest(StateServer server1, ElectionsProtoRequest request){
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(server1.getHostName(), Integer.parseInt(server1.getGRpcPort())).usePlaintext(true).build();
         electionsProtoServiceGrpc.electionsProtoServiceBlockingStub stub = electionsProtoServiceGrpc.newBlockingStub(channel);
         //System.out.println("Sending sync gRPC request to: " + server.getIp());
         ElectionsProtoResponse response = stub.electionsProtoHandler(request);
@@ -165,7 +165,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
             type = 4;
         }
 
-        utils.dbg("Sending reques to " + server.getHostName() + " gRPC server to add vote: " + vote);
+        utils.dbg("Sending request to " + server.getHostName() + " gRPC server to add vote: " + vote);
         ElectionsProtoRequest request = ElectionsProtoRequest.newBuilder()
                 .setId(vote.getId())
                 .setState(vote.getState())
@@ -234,8 +234,8 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         // Send gRPC request type 0 to all alive servers in cluster instead of his self (leader)
         for(String name: zookeeperClient.getLiveServers()){
             if(!name.equals(zookeeperClient.getLeader())){
-                StateServer server = clusterServers.get(name);
-                utils.dbg("Leader("+this.server.getHostName()+") sending update to " + server.getHostName() + ", vote: " + vote);
+                StateServer server1 = clusterServers.get(name);
+                utils.dbg("Leader("+this.server.getHostName()+") sending update to " + this.server.getHostName() + ", vote: " + vote);
                 ElectionsProtoRequest request = ElectionsProtoRequest.newBuilder()
                         .setId(vote.getId())
                         .setState(vote.getState())
@@ -243,7 +243,8 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
                         .setType(0)
                         .setName(initiatorName)
                         .build();
-                sendAsyncGRpcRequest(server, request);
+                sendSyncGRpcRequest(server1, request);
+                //sendAsyncGRpcRequest(server, request);
             }
         }
 
@@ -276,17 +277,17 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         utils.dbg("Proto handler with type: " + type);
 
         switch (type){
-            case 0: {
-                // Current may be both, server requesting (by async request) to update new vote in database
-                ElectionsProtoResponse response;
-                if(electionsAtomicBroadcast(request.getName(), new Voter(request.getId(), request.getState(), request.getVote()))){
-                    // Response not really relevant because leader wouldn't see it
-                    response = ElectionsProtoResponse.newBuilder().setSucceed(true).build();
-                }else {
-                    response = ElectionsProtoResponse.newBuilder().setSucceed(false).build();
-                }
-                return response;
-            }
+            //case 0: {
+            //    // Current may be both, server requesting (by async request) to update new vote in database
+            //    ElectionsProtoResponse response;
+            //    if(electionsAtomicBroadcast(request.getName(), new Voter(request.getId(), request.getState(), request.getVote()))){
+            //        // Response not really relevant because leader wouldn't see it
+            //        response = ElectionsProtoResponse.newBuilder().setSucceed(true).build();
+            //    }else {
+            //        response = ElectionsProtoResponse.newBuilder().setSucceed(false).build();
+            //    }
+            //    return response;
+            //}
             case 1: {
                 // Current is leader, another server from cluster received the update info and waiting for commit
                 // Not used
@@ -412,7 +413,13 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
                         .setSucceed(true)
                         .setType(RESPONSE_TYPE_PING)
                         .build();
-            }else {
+            }else if(request.getType() == 0) {
+                response = ElectionsProtoResponse.newBuilder().setSucceed(true).build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                manager.electionsAtomicBroadcast(request.getName(), new Voter(request.getId(), request.getState(), request.getVote()));
+                return;
+            }else{
                 try {
                     response = manager.gRPCServerProtoHandler(request);
                 }catch (Exception e){
