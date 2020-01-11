@@ -83,6 +83,9 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         this.electors = this.utils.parseElectors();
         utils.log("Data base loaded");
 
+        utils.dbg(this.server.toString());
+        utils.dbg(this.clusterServers.toString());
+
         utils.log("Starting gRPC server...");
         this.startGRPCServer();
         utils.log("gRPC server started");
@@ -92,6 +95,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
             this.zookeeperClient = new ElectionsZookeeperClient(this.server, this.federalServers, this.clusterServers);
             this.zookeeperClient.start();
         }catch (Exception e){
+            e.printStackTrace();
             utils.log("Zookeeper client service start failed");
         }
         utils.log("Zookeeper client service started");
@@ -235,7 +239,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         for(String name: zookeeperClient.getLiveServers()){
             if(!name.equals(zookeeperClient.getLeader())){
                 StateServer server1 = clusterServers.get(name);
-                utils.dbg("Leader("+this.server.getHostName()+") sending update to " + this.server.getHostName() + ", vote: " + vote);
+                utils.dbg("Leader("+this.server.getHostName()+") sending update to " + server1 + ", vote: " + vote);
                 ElectionsProtoRequest request = ElectionsProtoRequest.newBuilder()
                         .setId(vote.getId())
                         .setState(vote.getState())

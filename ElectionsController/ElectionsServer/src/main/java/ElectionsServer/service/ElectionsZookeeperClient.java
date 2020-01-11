@@ -86,7 +86,7 @@ public class ElectionsZookeeperClient {
             return;
         }
 
-        this.electionService = new ElectionsLeaderElectionZKService(client, "/leader_selection", this.server);
+        this.electionService = new ElectionsLeaderElectionZKService(client, "/" + this.server.getState() + "/leader_selection", this.server);
     }
 
     private void dbg(String msg){
@@ -96,26 +96,33 @@ public class ElectionsZookeeperClient {
     }
 
     private void createSubRootNodes() throws Exception {
+        //try {
+        //    this.client.delete().deletingChildrenIfNeeded().forPath("/" + this.server.getState());
+        //}catch(Exception ignored){}
         try {
             this.client.create()
                     .creatingParentsIfNeeded()
                     .withMode(CreateMode.PERSISTENT)
                     .forPath("/" + this.server.getState() + "/all_nodes");
+        }catch(Exception ignored){}
+        try{
             this.client.create()
                     .creatingParentsIfNeeded()
                     .withMode(CreateMode.PERSISTENT)
                     .forPath("/" + this.server.getState() + "/live_nodes");
+        }catch(Exception ignored){}
+        try{
             this.client.create()
                     .creatingParentsIfNeeded()
                     .withMode(CreateMode.PERSISTENT)
                     .forPath("/" + this.server.getState() + "/update");
+        }catch(Exception ignored){}
+        try{
             this.client.create()
                     .creatingParentsIfNeeded()
                     .withMode(CreateMode.PERSISTENT)
                     .forPath("/" + this.server.getState() + "/update_out");
         }catch (Exception e){
-            dbg("Failed to create sub root nodes");
-            throw e;
         }
     }
 
@@ -123,15 +130,20 @@ public class ElectionsZookeeperClient {
         this.client.start();
         dbg("Starting Zookeeper client connection");
 
+        dbg("Adding persistent node to all_nodes root");
+        createSubRootNodes();
+
         dbg("Assigning listeners");
         addAllNodesListener(client, "/" + this.server.getState() + "/all_nodes");
         addLiveNodesListener(client, "/" + this.server.getState() + "/live_nodes");
         addUpdateListener(client, "/" + this.server.getState() + "/update");
         dbg("Listeners started");
 
-        dbg("Adding persistent node to all_nodes root");
-        createSubRootNodes();
         this.electionService.start();
+
+        createNode(CreateMode.EPHEMERAL, pathToServerName("update_out"));
+        createNode(CreateMode.PERSISTENT, pathToServerName("live_nodes"));
+
         dbg("Zookeeper client connection started");
     }
 
@@ -189,7 +201,7 @@ public class ElectionsZookeeperClient {
 
     private List<String> getNodes(String rootSubTree){
         try {
-            return client.getChildren().forPath("/" + this.server.getState() + "/" + rootSubTree);
+            return client.getChildren().forPath(rootSubTree);
         }catch (Exception e){
             dbg("Failed to get nodes from " + rootSubTree);
             return new ArrayList<>();
@@ -224,7 +236,7 @@ public class ElectionsZookeeperClient {
         try {
             // Wait until update_out got empty
             dbg("Waiting until update_out got empty");
-            while (getNodes("update_out").size()>0){}
+            while (getNodes(pathCreate("update_out")).size()>0){}
 
             // Update "update" root node data to PENDING
             setNodeData(pathCreate("update_out"), "PENDING");
@@ -234,7 +246,7 @@ public class ElectionsZookeeperClient {
 
             // Wait until "update"s root node data is PENDING
             dbg("Waiting until update root node contains PENDING");
-            while (getNodeData(pathToServerName(nodeUpdatePath())).equals("PENDING")){}
+            while (getNodeData(nodeUpdatePath()).equals("PENDING")){}
 
             // Remove from "update" and go to "update_out"
             deleteNode(pathToServerName("update"));
@@ -295,19 +307,19 @@ public class ElectionsZookeeperClient {
                         return;
                     }
                     case INITIALIZED:{
-                        dbg(treeCacheEvent.getData().getPath() + " INITIALIZED");
+                        dbg("All nodes root INITIALIZED");
                         return;
                     }
                     case CONNECTION_LOST:{
-                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION LOST");
+                        dbg("All nodes root CONNECTION LOST");
                         return;
                     }
                     case CONNECTION_SUSPENDED:{
-                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION SUSPEND");
+                        dbg("All nodes root CONNECTION SUSPEND");
                         return;
                     }
                     case CONNECTION_RECONNECTED:{
-                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION RECONNECTED");
+                        dbg("All nodes root CONNECTION RECONNECTED");
                         return;
                     }
                     default:{
@@ -344,19 +356,19 @@ public class ElectionsZookeeperClient {
                         return;
                     }
                     case INITIALIZED:{
-                        dbg(treeCacheEvent.getData().getPath() + " INITIALIZED");
+                        dbg("Live nodes root INITIALIZED");
                         return;
                     }
                     case CONNECTION_LOST:{
-                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION LOST");
+                        dbg("Live nodes root CONNECTION LOST");
                         return;
                     }
                     case CONNECTION_SUSPENDED:{
-                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION SUSPEND");
+                        dbg("Live nodes root CONNECTION SUSPEND");
                         return;
                     }
                     case CONNECTION_RECONNECTED:{
-                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION RECONNECTED");
+                        dbg("Live nodes root CONNECTION RECONNECTED");
                         return;
                     }
                     default:{
@@ -396,51 +408,60 @@ public class ElectionsZookeeperClient {
         TreeCacheListener listener = new TreeCacheListener() {
             @Override
             public void childEvent(CuratorFramework curatorFramework, TreeCacheEvent treeCacheEvent) throws Exception {
-                dbgTreeCache("Update nodes listener", treeCacheEvent);
-                switch (treeCacheEvent.getType()){
-                    case NODE_REMOVED:{
-                        dbg(treeCacheEvent.getData().getPath() + " REMOVED");
-                        String path = treeCacheEvent.getData().getPath();
+                try {
+                    dbgTreeCache("Update nodes listener", treeCacheEvent);
+                    switch (treeCacheEvent.getType()){
+                        case NODE_REMOVED:{
+                            dbg(treeCacheEvent.getData().getPath() + " REMOVED");
+                            String path = treeCacheEvent.getData().getPath();
 
-                        if (getNodeFromPath(treeCacheEvent.getData().getPath()).equals(getLeader())
-                            && getNodeData(pathToServerName(nodeUpdatePath())).equals("PENDING")){
-                            dbg("Leader went down before commit, update should be un-validated");
-                            setNodeData(pathCreate("update_out"), "ERROR");
+                            if (getNodeFromPath(treeCacheEvent.getData().getPath()).equals(getLeader())
+                                    && getNodeData(nodeUpdatePath()).equals("PENDING")){
+                                dbg("Leader went down before commit, update should be un-validated");
+                                setNodeData(pathCreate("update"), "ERROR");
+                            }
+                            return;
                         }
-                        return;
-                    }
-                    case NODE_UPDATED:{
-                        dbg(treeCacheEvent.getData().getPath() + " UPDATED");
-                        return;
-                    }
-                    case NODE_ADDED:{
-                        dbg(treeCacheEvent.getData().getPath() + " ADDED");
-                        if(getNodes(nodeUpdatePath()).size() == getNodes(liveNodesPath()).size()){
-                            dbg("All live nodes received update, changing state to COMMIT");
-                            setNodeData(pathCreate("update_out"), "COMMIT");
+                        case NODE_UPDATED:{
+                            dbg(treeCacheEvent.getData().getPath() + " UPDATED");
+                            return;
                         }
-                        return;
+                        case NODE_ADDED:{
+                            dbg(treeCacheEvent.getData().getPath() + " ADDED");
+                            Integer a = getNodes(nodeUpdatePath()).size();
+                            Integer b = getNodes(liveNodesPath()).size();
+                            if(a == b){
+                                dbg("Live   nodes => " + getNodes(liveNodesPath()) + ", size: " + b);
+                                dbg("Update nodes => " + getNodes(nodeUpdatePath()));
+                                if(a!=0){
+                                    dbg("All live nodes received update, changing state to COMMIT");
+                                    setNodeData(pathCreate("update_out"), "COMMIT");
+                                }
+                            }
+                            return;
+                        }
+                        case INITIALIZED:{
+                            dbg("Update nodes root INITIALIZED");
+                            return;
+                        }
+                        case CONNECTION_LOST:{
+                            dbg("Update nodes root CONNECTION LOST");
+                            return;
+                        }
+                        case CONNECTION_SUSPENDED:{
+                            dbg("Update nodes root CONNECTION SUSPEND");
+                            return;
+                        }
+                        case CONNECTION_RECONNECTED:{
+                            dbg("Update nodes root CONNECTION RECONNECTED");
+                            return;
+                        }
+                        default:{
+                            dbg("Update nodes listener received undefined type");
+                        }
                     }
-                    case INITIALIZED:{
-                        dbg(treeCacheEvent.getData().getPath() + " INITIALIZED");
-                        return;
-                    }
-                    case CONNECTION_LOST:{
-                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION LOST");
-                        return;
-                    }
-                    case CONNECTION_SUSPENDED:{
-                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION SUSPEND");
-                        return;
-                    }
-                    case CONNECTION_RECONNECTED:{
-                        dbg(treeCacheEvent.getData().getPath() + " CONNECTION RECONNECTED");
-                        return;
-                    }
-                    default:{
-                        dbg("All nodes listener received undefined type");
-                    }
-                }
+                }catch (Exception e){}
+
 
             }
         };

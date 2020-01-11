@@ -12,7 +12,7 @@ import java.util.HashMap;
 
 public class ElectionsManagerUtils {
     String hostName = System.getenv("DOCKER_ELECTIONS_HOSTNAME");
-    String stateName;
+    String stateName = System.getenv("DOCKER_ELECTIONS_STATE");
 
 
     public ElectionsManagerUtils(){
@@ -115,11 +115,8 @@ public class ElectionsManagerUtils {
                     currentServer.setGRpcPort(server.getGRpcPort());
                     currentServer.setRmiPort(server.getRmiPort());
                     currentServer.setZooKeeperServer(server.getZooKeeperServer());
-                    this.stateName = server.getState();
                 }
-                if(server.getState().equals(this.stateName)){
-                    clusterServers.put(server.getIp(), server);
-                }
+
             }
         }catch (FileNotFoundException e){
             e.printStackTrace();

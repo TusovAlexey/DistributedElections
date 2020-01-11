@@ -79,7 +79,6 @@ public class StateServer {
         }
     }
 
-    public boolean isLeader(){return this.isLeader;}
 
     public void takeLeadership(){this.isLeader = true;}
 
@@ -87,11 +86,6 @@ public class StateServer {
 
     public StateServer setState(String state){
         this.state = state;
-        return this;
-    }
-
-    public StateServer setIp(String hostName){
-        this.hostName = hostName;
         return this;
     }
 
