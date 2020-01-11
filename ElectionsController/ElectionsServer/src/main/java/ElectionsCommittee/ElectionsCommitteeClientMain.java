@@ -1,63 +1,49 @@
 package ElectionsCommittee;
 
-//import jline.console.ConsoleReader;
-
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
 
 public class ElectionsCommitteeClientMain {
     public static void main(String args[]){
-        System.out.println("Committee client started");
-        try {
-            TimeUnit.SECONDS.sleep(100);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        Integer attempts = 1000;
+        System.out.println("Preparing to election process ...");
         ElectionsCommitteeClient client = new ElectionsCommitteeClient();
-        client.systemUp();
-        client.startElections();
-        System.out.println("Committee started vote process!");
-        while (attempts>0){
-            client.getResults();
-            --attempts;
-
-            try {
-                TimeUnit.SECONDS.sleep(10);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        client.stopElections();
+        interactiveShell(client);
     }
 
-    //private void interactiveShell(){
-    //    ConsoleReader r = null;
-    //    try {
-    //        r = new ConsoleReader();
-    //        while (true)
-    //        {
-    //            r.println("Good morning");
-    //            r.flush();
-//
-    //            String input = r.readLine("prompt>");
-//
-    //            if ("clear".equals(input))
-    //                r.clearScreen();
-    //            else if ("exit".equals(input))
-    //                return;
-    //            else
-    //                System.out.println("You typed '" + input + "'.");
-//
-    //        }
-    //    } catch (IOException e) {
-    //        e.printStackTrace();
-    //    }
-//
-//
-    //}
-
-
-
+    private static void interactiveShell(ElectionsCommitteeClient client){
+        InputStreamReader r = new InputStreamReader(System.in);
+        BufferedReader br = new BufferedReader(r);
+        String command="";
+        while(!command.equals("exit")) {
+            System.out.println("Please, Enter The Command:  start | get | stop | exit ");
+            try {
+                command = br.readLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if(command.equals("start")) {
+                client.startElections();
+                System.out.println("Committee started Elections!");
+            }
+            if(command.equals("get")) {
+                System.out.println("====================== MID RESULTS ======================");
+                client.getResults();
+                System.out.println("=========================================================");
+            }
+            if(command.equals("stop")) {
+                client.stopElections();
+                System.out.println("====================== FINAL ELECTION RESULTS ======================");
+                client.getResults();
+                System.out.println("====================================================================");
+            }
+        }
+        try {
+            br.close();
+            r.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }

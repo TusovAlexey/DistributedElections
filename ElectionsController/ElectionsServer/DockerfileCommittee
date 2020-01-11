@@ -2,5 +2,6 @@ FROM openjdk:8-jdk
 
 COPY . /elections
 WORKDIR /elections/ElectionsController/ElectionsServer
-ENTRYPOINT ["java", "-cp", "./target/ElectionsServer-1.jar", "ElectionsCommittee.ElectionsCommitteeClientMain"]
-#ENTRYPOINT ["ping", "serverCA0"]
+# ENTRYPOINT ["java", "-cp", "./target/ElectionsServer-1.jar", "ElectionsCommittee.ElectionsCommitteeClientMain"]
+ENTRYPOINT ["ping", "zookeeper1"]
+# java -cp ./target/ElectionsServer-1.jar ElectionsCommittee.ElectionsCommitteeClientMain

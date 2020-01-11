@@ -11,21 +11,21 @@ version: '3.7'
 
 services:
 
-#  committee_client:
-#    container_name: committeeClient
-#    build:
-#      context: .
-#      dockerfile: ./ElectionsController/ElectionsServer/DockerfileCommittee
-#    image: committee_client
-#    hostname: CommitteeClient
-#    expose:
-#      - 20002
-#      - 20012
-#    depends_on:
-#      - elections_server_ca_0
-#      - elections_server_ca_1
-#    networks:
-#      - elections_net
+  committee_client:
+    container_name: committeeClient
+    build:
+      context: .
+      dockerfile: ./ElectionsController/ElectionsServer/DockerfileCommittee
+    image: committee_client
+    hostname: CommitteeClient
+    expose:
+      - 20002
+      - 20012
+    depends_on:
+      - elections_server_ca_0
+      - elections_server_ca_1
+    networks:
+      - elections_net
 
 
 ## CA state - 3 REST servers and 3 REST clients

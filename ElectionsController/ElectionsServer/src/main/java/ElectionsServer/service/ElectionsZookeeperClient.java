@@ -268,6 +268,9 @@ public class ElectionsZookeeperClient {
 
     public String getStateLeader(String state) throws Exception {
         List<String> leaders = client.getChildren().forPath("/" + state + "/leader");
+        if(leaders.isEmpty()) {
+            return null;
+        }
         return leaders.get(0);
     }
 

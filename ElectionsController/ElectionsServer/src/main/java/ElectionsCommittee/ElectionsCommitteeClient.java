@@ -91,18 +91,17 @@ public class ElectionsCommitteeClient {
         this.parseServers();
         this.parseCandidates();
         for(StateServer server : this.servers.values()){
-            Integer attempts = 5;
+            Integer attempts = 100;
             while (attempts > 0){
                 try {
                     System.out.println("Trying to get registry from " + server.getIp() + ":" + server.getRmiPort());
                     Registry registry = LocateRegistry.getRegistry(server.getIp(), Integer.parseInt(server.getRmiPort()));
-                    System.out.println("Looking for ElectionRMI in registry");
+                    System.out.println("Looking for Election RMI in registry");
                     ElectionsCommitteeInstructionRemote remoteExec = (ElectionsCommitteeInstructionRemote)registry
                             .lookup("ElectionsRMI");
                     server.setRemoteExecutor(remoteExec);
                     server.setStatus(StateServer.ServerStatus.ALIVE);
-                    System.out.println("server " + server.getIp() + "status is " + server.getStatus());
-                    System.out.println("+++++++++++++++++++++++++++++++++");
+                    System.out.println( "+ " + server.getIp() + " status is " + server.getStatus());
                     break;
                 } catch (RemoteException | NotBoundException e) {
                     e.printStackTrace();
@@ -121,18 +120,18 @@ public class ElectionsCommitteeClient {
         }
     }
 
-    void systemUp(){
-        for(StateServer server: this.servers.values()){
-            ElectionsCommitteeInstruction systemUpRequest =
-                    new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.SYSTEM_UP);
-            ElectionsCommitteeInstruction systemUpResponse = server.remoteRMI(systemUpRequest);
-            if(systemUpResponse.getInstructionStatus()== ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
-                System.out.println("Systems in server " + server.getIp() + " is up");
-            }else{
-                System.out.println("Systems in server " + server.getIp() + " is down");
-            }
-        }
-    }
+//    void systemUp(){
+//        for(StateServer server: this.servers.values()){
+//            ElectionsCommitteeInstruction systemUpRequest =
+//                    new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.SYSTEM_UP);
+//            ElectionsCommitteeInstruction systemUpResponse = server.remoteRMI(systemUpRequest);
+//            if(systemUpResponse.getInstructionStatus()== ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
+//                System.out.println("Systems in server " + server.getIp() + " is up");
+//            }else{
+//                System.out.println("Systems in server " + server.getIp() + " is down");
+//            }
+//        }
+//    }
 
     void startElections(){
         for(StateServer server: this.servers.values()){
@@ -143,7 +142,7 @@ public class ElectionsCommitteeClient {
                 System.out.println("Elections in server " + server.getIp() + " is started");
             }else{
                 if (server.getStatus().equals(StateServer.ServerStatus.ALIVE)){
-                    System.out.println("Elections in server " + server.getIp() + " is ended");
+                    System.out.println("Elections in server " + server.getIp() + " is started");
                 }else {
                     System.out.println("Server " + server.getIp() + " is down, unable to proceed instruction");
                     System.out.println("Server " + server.getIp() + " Status is  " + server.getStatus());
@@ -158,7 +157,7 @@ public class ElectionsCommitteeClient {
                     new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.STOP_ELECTIONS);
             ElectionsCommitteeInstruction systemUpResponse = server.remoteRMI(systemUpRequest);
             if(systemUpResponse.getInstructionStatus()== ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
-                System.out.println("Elections in server " + server.getIp() + " is started");
+                System.out.println("Elections in server " + server.getIp() + " is ended");
             }else{
                 if (server.getStatus().equals(StateServer.ServerStatus.ALIVE)){
                     System.out.println("Elections in server " + server.getIp() + " is ended");
@@ -178,7 +177,6 @@ public class ElectionsCommitteeClient {
             ElectionsCommitteeInstruction getResultsResponse = server.remoteRMI(getResultsRequest);
 
             if(getResultsResponse.getInstructionStatus() == ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
-                System.out.println("Got results from state " + server.getState());
                 result = new HashMap<>(getResultsResponse.getResults());
                 return result;
             }
@@ -188,24 +186,26 @@ public class ElectionsCommitteeClient {
     }
 
     void getResults(){
-        System.out.println("============== RESULTS ======================");
+        for (Candidate candidate: this.candidates.values()){
+            candidate.setVotes(0);
+            candidate.setElectors(0);
+        }
         Set<String> states = this.servers.values().stream().map(StateServer::getState).collect(Collectors.toSet());
         for(String state : states){
             HashMap<Integer, Candidate> stateResults = this.getStateResults(state);
             System.out.println("State " + state + " results:");
             for(Candidate candidate : stateResults.values()){
-                System.out.println(candidate);
+                System.out.println("    " + candidate);
                 Candidate localCandidate = this.candidates.get(candidate.getIndex());
                 localCandidate.setVotes(localCandidate.getVotes() + candidate.getVotes());
                 localCandidate.setElectors(localCandidate.getElectors() + candidate.getElectors());
             }
         }
 
-        System.out.println("Common results:");
+        System.out.println("Total results:");
         for (Candidate candidate: this.candidates.values()){
-            System.out.println(candidate);
+            System.out.println("    " + candidate);
         }
-        System.out.println("============== END ======================");
     }
 
 

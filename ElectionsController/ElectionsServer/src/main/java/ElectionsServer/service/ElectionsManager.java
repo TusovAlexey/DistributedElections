@@ -45,10 +45,9 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
     // Current state server
     StateServer server;
     Integer electors;
-    //boolean systemUp = false;
     boolean systemUp = true;
     //boolean electionsOpen = false;
-    boolean electionsOpen = true;
+    boolean electionsOpen = false;
     private ElectionsZookeeperClient zookeeperClient;
     // Mapping hostname -> StateServer
     private HashMap<String, StateServer> clusterServers;
@@ -103,11 +102,11 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         utils.log("Elections Manager initialization completed");
     }
 
-    public void syncSystemUp(){
-        utils.log("Waiting for system up command from committee");
-        while (!systemUp){}
-        utils.log("Systems is up, we are ready to go");
-    }
+//    public void syncSystemUp(){
+//        utils.log("Waiting for system up command from committee");
+//        while (!systemUp){}
+//        utils.log("Systems is up, we are ready to go");
+//    }
 
     public void waitElectionsOpen(){
         utils.log("Waiting for committee command to start elections, voters can'n vote yet");
@@ -184,14 +183,16 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
 
     public String proceedVoteFromClient(Voter vote) throws Exception {
         // This context can be done only by main thread (REST controller)
-        if (!this.systemUp){
-            return "We are sorry, our systems not ready yet.";
-        }else if(!this.electionsOpen){
+//        if (!this.systemUp){
+//            return "We are sorry, our systems not ready yet.";
+//        }else
+        if(!this.electionsOpen){
             return "We are sorry, elections not started yet. We are waiting to start command from the committee";
         }
 
         String answer = "";
         boolean result = false;
+        String leader = null;
         if(!vote.getState().equals(this.server.getState())){
             result = requestGRpcServerAddVote(federalServers.get(zookeeperClient.getStateLeader(vote.getState())), vote);
             if(result){
@@ -199,8 +200,13 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
                         + ", Thank you for your vote.";
             }
         }else {
-            while (result!=true){
-                result = this.requestGRpcServerAddVote(clusterServers.get(zookeeperClient.getLeader()),vote);
+            while (!result){
+                leader = zookeeperClient.getLeader();
+                if(leader == null) {
+                    answer = "Dear citizen (Id " + vote.getId() + "), the service is too busy, please try later.";
+                    result=true;
+                }
+                result = this.requestGRpcServerAddVote(clusterServers.get(leader),vote);
                 if(result){
                     answer = "Dear citizen (Id " + vote.getId() + "), your vote registered successfully in " + vote.getState() + ", " +
                             "Thank you for your vote";
@@ -342,20 +348,24 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
     }
 
     private void updateElectors(){
-        HashMap<Integer, Integer> candidateToVotes = new HashMap<>();
-        HashMap<Integer, Integer> newResults = new HashMap<>();
-        Integer electorsNumber = this.electors;
-        Integer totalVotes = getActualNumberOfVotes();
-        Integer voterForElector = (Integer) (totalVotes / electorsNumber);
-
         for(Candidate candidate : this.candidates.values()){
+            candidate.setElectors(0);
             Integer candidateVotes = this.getVotesForCandidate(candidate.getIndex());
             candidate.setVotes(candidateVotes);
-            while (candidateVotes > voterForElector){
-                candidate.setElectors(candidate.getElectors() + 1);
-                candidateVotes = candidateVotes - voterForElector;
-            }
         }
+        List<Candidate> candidates_list = new ArrayList<Candidate>(this.candidates.values());
+        Collections.sort(
+                candidates_list
+                ,   new Comparator<Candidate>() {
+                    public int compare(Candidate a, Candidate b) {
+                        return Integer.compare(b.getVotes(), a.getVotes());
+                    }
+                }
+        );
+        Candidate winner = candidates_list.get(0);
+        winner.setElectors(this.electors);
+        System.out.println(candidates_list);
+        System.out.println("The current winner is " + winner.getName() + " and got " + winner.getVotes());
     }
 
     private HashMap<Integer, Candidate> getResults(){
@@ -370,7 +380,6 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         }finally {
             databaseMutex.release(1);
         }
-
         return results;
     }
 
@@ -379,18 +388,22 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         ElectionsCommitteeInstruction instruction = (ElectionsCommitteeInstruction)task;
         ElectionsCommitteeInstruction.ElectionCommitteeInstructionType instructionType = instruction.getInstructionType();
         if(instructionType.equals(START_ELECTIONS)){
+            System.out.println("=======================> START_ELECTIONS:");
             this.electionsOpen = true;
             return task.responseStartElections();
         }else if(instructionType.equals(STOP_ELECTIONS)){
+            System.out.println("=======================> STOP_ELECTIONS:");
             this.electionsOpen = false;
             return task.responseStopElections();
         }else if(instructionType.equals(GET_RESULTS)){
+            System.out.println("=======================> GET_RESULTS:");
             HashMap<Integer, Candidate> candidateResults = getResults();
             return task.responseGetResults(candidateResults);
-        }else if(instructionType.equals(SYSTEM_UP)){
-            this.systemUp = true;
-            return task.responseSystemUp();
         }
+//        else if(instructionType.equals(SYSTEM_UP)){
+//            this.systemUp = true;
+//            return task.responseSystemUp();
+//        }
 
         // Shouldn't be here
         return task.execute();
