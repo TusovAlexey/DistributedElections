@@ -2,9 +2,6 @@ version: "3.7"
 services:
   zookeeper1:
     image: zookeeper
-    #build:
-    #  context: .
-    #  dockerfile: Dockerfile
     restart: always
     container_name: zookeeper1
     hostname: zookeeper1
@@ -13,13 +10,8 @@ services:
     environment:
       ZOO_MY_ID: 1
       ZOO_SERVERS: server.1=0.0.0.0:2888:3888 clientPort=2181 quorumListenOnAllIPs=true maxSessionTimeout=600000
-    #      ZOO_SERVERS: server.1=0.0.0.0:2888:3888 server.2=zookeeper2:2888:3888 server.3=zookeeper3:2888:3888 clientPort=2181 quorumListenOnAllIPs=true
     networks:
       - elections_net
-    #command: ["zkServer.sh", "start-foreground"]
-    #command: ["exec sleep 5 && bash zkCli.sh ls /", "zkServer.sh", "start-foreground"]
-    #command: "./bin/zkCli.sh deleteall /CA"
-    #entrypoint: [" zkCli.sh", "deleteall", "/CA", ""]
 
   zoonavigator-web:
     image: elkozmon/zoonavigator-web:0.2.1
@@ -51,4 +43,3 @@ services:
 networks:
   elections_net:
     external: true
-#    driver: bridge

@@ -20,10 +20,10 @@ import java.util.concurrent.TimeUnit;
  *                                         /(root)
  *                                       /
  *                                     /
- *                      --------state0------------------------------------------
- *                    /          |       \                \          \          \
- *                  /           |         \                \          \          \
- *            live_nodes    all_nodes    leader_selection  update   update_out   leader
+ *                      --------state0-------------------------------
+ *                    /       \                \          \          \
+ *                  /          \                \          \          \
+ *            live_nodes      leader_selection  update   update_out   leader
  *               /  \
  *             /     \
  *        server0  server1 ...
@@ -99,50 +99,50 @@ public class ElectionsZookeeperClient {
         //try {
         //    this.client.delete().deletingChildrenIfNeeded().forPath("/" + this.server.getState());
         //}catch(Exception ignored){}
-        try {
-            this.client.create()
-                    .creatingParentsIfNeeded()
-                    .withMode(CreateMode.PERSISTENT)
-                    .forPath("/" + this.server.getState() + "/all_nodes");
-        }catch(Exception ignored){}
-        try{
-            this.client.create()
-                    .creatingParentsIfNeeded()
-                    .withMode(CreateMode.PERSISTENT)
-                    .forPath("/" + this.server.getState() + "/live_nodes");
-        }catch(Exception ignored){}
-        try{
-            this.client.create()
-                    .creatingParentsIfNeeded()
-                    .withMode(CreateMode.PERSISTENT)
-                    .forPath("/" + this.server.getState() + "/update");
-        }catch(Exception ignored){}
-        try{
-            this.client.create()
-                    .creatingParentsIfNeeded()
-                    .withMode(CreateMode.PERSISTENT)
-                    .forPath("/" + this.server.getState() + "/update_out");
-        }catch (Exception e){
-        }
+        //try {
+        //    this.client.create()
+        //            .creatingParentsIfNeeded()
+        //            .withMode(CreateMode.PERSISTENT)
+        //            .forPath("/" + this.server.getState() + "/all_nodes");
+        //}catch(Exception ignored){}
+        //try{
+        //    this.client.create()
+        //            .creatingParentsIfNeeded()
+        //            .withMode(CreateMode.PERSISTENT)
+        //            .forPath("/" + this.server.getState() + "/live_nodes");
+        //}catch(Exception ignored){}
+        //try{
+        //    this.client.create()
+        //            .creatingParentsIfNeeded()
+        //            .withMode(CreateMode.PERSISTENT)
+        //            .forPath("/" + this.server.getState() + "/update");
+        //}catch(Exception ignored){}
+        //try{
+        //    this.client.create()
+        //            .creatingParentsIfNeeded()
+        //            .withMode(CreateMode.PERSISTENT)
+        //            .forPath("/" + this.server.getState() + "/update_out");
+        //}catch (Exception e){
+        //}
     }
 
     public void start() throws Exception {
         this.client.start();
         dbg("Starting Zookeeper client connection");
 
-        dbg("Adding persistent node to all_nodes root");
-        createSubRootNodes();
+        //dbg("Adding persistent node to all_nodes root");
+        //createSubRootNodes();
 
         dbg("Assigning listeners");
-        addAllNodesListener(client, "/" + this.server.getState() + "/all_nodes");
+        //addAllNodesListener(client, "/" + this.server.getState() + "/all_nodes");
         addLiveNodesListener(client, "/" + this.server.getState() + "/live_nodes");
         addUpdateListener(client, "/" + this.server.getState() + "/update");
         dbg("Listeners started");
 
         this.electionService.start();
 
-        createNode(CreateMode.EPHEMERAL, pathToServerName("all_nodes"));
-        createNode(CreateMode.PERSISTENT, pathToServerName("live_nodes"));
+        //createNode(CreateMode.EPHEMERAL, pathToServerName("all_nodes"));
+        createNode(CreateMode.EPHEMERAL, pathToServerName("live_nodes"));
 
         dbg("Zookeeper client connection started");
     }
@@ -287,52 +287,52 @@ public class ElectionsZookeeperClient {
 
     // Listener for sub tree /<state>/all_nodes/...
     // Where registered persistent nodes for new added servers
-    private void addAllNodesListener(CuratorFramework curatorFramework, String path) throws Exception {
-        TreeCache cache = new TreeCache(curatorFramework, path);
-        TreeCacheListener listener = new TreeCacheListener() {
-            @Override
-            public void childEvent(CuratorFramework curatorFramework, TreeCacheEvent treeCacheEvent) throws Exception {
-                dbgTreeCache("All nodes listener", treeCacheEvent);
-                switch (treeCacheEvent.getType()){
-                    case NODE_REMOVED:{
-                        dbg(treeCacheEvent.getData().getPath() + " REMOVED");
-                        return;
-                    }
-                    case NODE_UPDATED:{
-                        dbg(treeCacheEvent.getData().getPath() + " UPDATED");
-                        return;
-                    }
-                    case NODE_ADDED:{
-                        dbg(treeCacheEvent.getData().getPath() + " ADDED");
-                        return;
-                    }
-                    case INITIALIZED:{
-                        dbg("All nodes root INITIALIZED");
-                        return;
-                    }
-                    case CONNECTION_LOST:{
-                        dbg("All nodes root CONNECTION LOST");
-                        return;
-                    }
-                    case CONNECTION_SUSPENDED:{
-                        dbg("All nodes root CONNECTION SUSPEND");
-                        return;
-                    }
-                    case CONNECTION_RECONNECTED:{
-                        dbg("All nodes root CONNECTION RECONNECTED");
-                        return;
-                    }
-                    default:{
-                        dbg("All nodes listener received undefined type");
-                    }
-                }
-            }
-        };
-
-        cache.getListenable().addListener(listener);
-        cache.start();
-        this.allNodeListener = cache;
-    }
+    //private void addAllNodesListener(CuratorFramework curatorFramework, String path) throws Exception {
+    //    TreeCache cache = new TreeCache(curatorFramework, path);
+    //    TreeCacheListener listener = new TreeCacheListener() {
+    //        @Override
+    //        public void childEvent(CuratorFramework curatorFramework, TreeCacheEvent treeCacheEvent) throws Exception {
+    //            dbgTreeCache("All nodes listener", treeCacheEvent);
+    //            switch (treeCacheEvent.getType()){
+    //                case NODE_REMOVED:{
+    //                    dbg(treeCacheEvent.getData().getPath() + " REMOVED");
+    //                    return;
+    //                }
+    //                case NODE_UPDATED:{
+    //                    dbg(treeCacheEvent.getData().getPath() + " UPDATED");
+    //                    return;
+    //                }
+    //                case NODE_ADDED:{
+    //                    dbg(treeCacheEvent.getData().getPath() + " ADDED");
+    //                    return;
+    //                }
+    //                case INITIALIZED:{
+    //                    dbg("All nodes root INITIALIZED");
+    //                    return;
+    //                }
+    //                case CONNECTION_LOST:{
+    //                    dbg("All nodes root CONNECTION LOST");
+    //                    return;
+    //                }
+    //                case CONNECTION_SUSPENDED:{
+    //                    dbg("All nodes root CONNECTION SUSPEND");
+    //                    return;
+    //                }
+    //                case CONNECTION_RECONNECTED:{
+    //                    dbg("All nodes root CONNECTION RECONNECTED");
+    //                    return;
+    //                }
+    //                default:{
+    //                    dbg("All nodes listener received undefined type");
+    //                }
+    //            }
+    //        }
+    //    };
+//
+    //    cache.getListenable().addListener(listener);
+    //    cache.start();
+    //    this.allNodeListener = cache;
+    //}
 
     // Listener for sub tree /<state>/live_nodes/...
     // Where registered EPHEMERAL nodes for live servers and removed in case of server down
