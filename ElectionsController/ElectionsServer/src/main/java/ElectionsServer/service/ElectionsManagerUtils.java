@@ -116,6 +116,9 @@ public class ElectionsManagerUtils {
                     currentServer.setRmiPort(server.getRmiPort());
                     currentServer.setZooKeeperServer(server.getZooKeeperServer());
                 }
+                if(server.getState().equals(this.stateName)){
+                    clusterServers.put(server.getHostName(), server);
+                }
 
             }
         }catch (FileNotFoundException e){

@@ -141,7 +141,7 @@ public class ElectionsZookeeperClient {
 
         this.electionService.start();
 
-        createNode(CreateMode.EPHEMERAL, pathToServerName("update_out"));
+        createNode(CreateMode.EPHEMERAL, pathToServerName("all_nodes"));
         createNode(CreateMode.PERSISTENT, pathToServerName("live_nodes"));
 
         dbg("Zookeeper client connection started");

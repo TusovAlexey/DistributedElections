@@ -25,8 +25,8 @@ public class ElectionsController {
         }
 
 
-        Integer rmiPort = Integer.parseInt(System.getenv("DOCKER_RMI_PORT"));
-        System.setProperty("java.rmi.server.hostname", System.getenv("DOCKER_HOST_NAME"));
+        Integer rmiPort = Integer.parseInt(System.getenv("DOCKER_ELETIONS_RMI_PORT"));
+        System.setProperty("java.rmi.server.hostname", System.getenv("DOCKER_ELECTIONS_HOSTNAME"));
 
         // Bind to registry for RMI
         try {

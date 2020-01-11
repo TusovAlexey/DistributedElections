@@ -1,46 +1,54 @@
 version: "3.7"
 services:
   zookeeper1:
-    image: zookeepercluster
+    image: zookeeper
+    #build:
+    #  context: .
+    #  dockerfile: Dockerfile
+    restart: always
     container_name: zookeeper1
     hostname: zookeeper1
-    environment:
-        ZOOKEEPER1: zookeeper1
-        ZOOKEEPER2: zookeeper2
-        ZOOKEEPER3: zookeeper3
-        MYID: 1
     ports:
-        - 2181:2181
-    networks:
-        - zookeeper
-  zookeeper2:
-    image: zookeepercluster
-    container_name: zookeeper2
-    hostname: zookeeper2
+      - 2181:2181
     environment:
-        ZOOKEEPER1: zookeeper1
-        ZOOKEEPER2: zookeeper2
-        ZOOKEEPER3: zookeeper3
-        MYID: 2
-    ports:
-        - 2182:2181
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=0.0.0.0:2888:3888 clientPort=2181 quorumListenOnAllIPs=true maxSessionTimeout=600000
+    #      ZOO_SERVERS: server.1=0.0.0.0:2888:3888 server.2=zookeeper2:2888:3888 server.3=zookeeper3:2888:3888 clientPort=2181 quorumListenOnAllIPs=true
     networks:
-        - zookeeper
-  zookeeper3:
-    image: zookeepercluster
-    container_name: zookeeper3
-    hostname: zookeeper3
+      - elections_net
+    #command: ["zkServer.sh", "start-foreground"]
+    #command: ["exec sleep 5 && bash zkCli.sh ls /", "zkServer.sh", "start-foreground"]
+    #command: "./bin/zkCli.sh deleteall /CA"
+    #entrypoint: [" zkCli.sh", "deleteall", "/CA", ""]
+
+  zoonavigator-web:
+    image: elkozmon/zoonavigator-web:0.2.1
+    container_name: zk_web
+    ports:
+      - "8004:8000"
     environment:
-        ZOOKEEPER1: zookeeper1
-        ZOOKEEPER2: zookeeper2
-        ZOOKEEPER3: zookeeper3
-        MYID: 3
-    ports:
-        - 2183:2181
+      API_HOST: "zoonavigator-api"
+      API_PORT: 9000
+    links:
+      - zoonavigator-api
+    depends_on:
+      - zoonavigator-api
+    restart: unless-stopped
     networks:
-        - zookeeper
+      - elections_net
+  zoonavigator-api:
+    image: elkozmon/zoonavigator-api:0.2.1
+    container_name: zk_web_api
+    environment:
+      SERVER_HTTP_PORT: 9000
+    restart: unless-stopped
+    depends_on:
+      - zookeeper1
+    networks:
+      - elections_net
+
 
 networks:
-    zookeeper:
-        external:
-            name: zookeeper
+  elections_net:
+    external: true
+#    driver: bridge
