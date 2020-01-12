@@ -1,0 +1,46 @@
+version: "3.7"
+services:
+  zookeeper1:
+    image: zookeeper
+    restart: always
+    container_name: zookeeper1
+    hostname: zookeeper1
+    ports:
+      - 2181:2181
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=0.0.0.0:2888:3888 clientPort=2181 quorumListenOnAllIPs=true
+      #ZOO_SERVERS: server.1=0.0.0.0:2888:3888 clientPort=2181 quorumListenOnAllIPs=true maxSessionTimeout=600000
+    networks:
+      - elections_net
+
+#  zoonavigator-web:
+#    image: elkozmon/zoonavigator-web:0.2.1
+#    container_name: zk_web
+#    ports:
+#      - "8004:8000"
+#    environment:
+#      API_HOST: "zoonavigator-api"
+#      API_PORT: 9000
+#    links:
+#      - zoonavigator-api
+#    depends_on:
+#      - zoonavigator-api
+#    restart: unless-stopped
+#    networks:
+#      - elections_net
+#  zoonavigator-api:
+#    image: elkozmon/zoonavigator-api:0.2.1
+#    container_name: zk_web_api
+#    environment:
+#      SERVER_HTTP_PORT: 9000
+#    restart: unless-stopped
+#    depends_on:
+#      - zookeeper1
+#    networks:
+#      - elections_net
+
+
+networks:
+  elections_net:
+    external: true

@@ -1,0 +1,57 @@
+version: '3.7'
+
+# Ports convention:
+#      2XXYZ
+#
+# XX - State number
+# Y  - Server index in cluster
+# Z  - 0 for REST server service
+#      1 for gRPC client service
+#      2 for gRPC server service
+
+services:
+#  elections_client_ca_0:
+#    container_name: clientCA0
+#    build:
+#      context: .
+#      dockerfile: ./ElectionsController/ElectionsClient/Dockerfile
+#    image: elections_client
+#    hostname: ElectionsClient-CA-0
+#    environment:
+#      - DOCKER_ELECTIONS_STATE=CA
+#      - DOCKER_ELECTIONS_CLIENT_INDEX=0
+#      - DOCKER_ELECTIONS_CLIENTS=3
+#      - DOCKER_ELECTIONS_SERVER_REST_NAME=serverCA0
+#      - DOCKER_ELECTIONS_SERVER_REST_PORT=20000
+#    networks:
+#      - elections_net
+
+  elections_client_ca:
+    container_name: clientCA
+    build:
+      context: .
+      dockerfile: ./ElectionsController/ElectionsClient/Dockerfile
+    image: elections_client
+    hostname: ElectionsClient-CA
+    environment:
+      - DOCKER_ELECTIONS_STATE=CA
+    networks:
+      - elections_net
+
+  elections_client_tx:
+    container_name: clientTX
+    build:
+      context: .
+      dockerfile: ./ElectionsController/ElectionsClient/Dockerfile
+    image: elections_client
+    hostname: ElectionsClient-TX
+    environment:
+      - DOCKER_ELECTIONS_STATE=TX
+    networks:
+      - elections_net
+
+networks:
+  elections_net:
+    external: true
+
+

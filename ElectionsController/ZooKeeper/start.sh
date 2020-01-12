@@ -6,4 +6,5 @@ cp ../zoo.cfg .
 #sed -i "s/ZOOKEEPER3/$ZOOKEEPER3/g" zoo.cfg
 cp zoo.cfg ./conf/
 echo $MYID > /data/zookeeper/myid
+
 ./bin/zkServer.sh start-foreground

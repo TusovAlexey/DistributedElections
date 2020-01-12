@@ -64,17 +64,17 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
     private HashMap<Integer, Voter> voters;
 
 
-    public ElectionsManager() throws RemoteException {
+    public ElectionsManager(StateServer stateServer) throws RemoteException {
         super();
-        this.utils = new ElectionsManagerUtils();
+        this.server = stateServer;
+        this.utils = new ElectionsManagerUtils(stateServer.getHostName(), server.getState(), server.getInstance());
         utils.log("Starting Elections Manager");
-        this.server = new StateServer(System.getenv("DOCKER_ELECTIONS_HOSTNAME"));
         this.clusterServers = new HashMap<>();
         this.federalServers = new HashMap<>();
         this.candidates = new HashMap<>();
         this.voters = new HashMap<>();
 
-        this.utils = new ElectionsManagerUtils();
+        //this.utils = new ElectionsManagerUtils();
         utils.log("Loading data base...");
         this.utils.parseServers(this.federalServers, this.clusterServers, this.server);
         this.utils.parserVoters(this.voters);

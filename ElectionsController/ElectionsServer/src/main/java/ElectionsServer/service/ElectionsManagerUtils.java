@@ -11,19 +11,27 @@ import java.io.*;
 import java.util.HashMap;
 
 public class ElectionsManagerUtils {
-    String hostName = System.getenv("DOCKER_ELECTIONS_HOSTNAME");
-    String stateName = System.getenv("DOCKER_ELECTIONS_STATE");
+    String hostName;
+    String stateName;
+    String instance;
 
 
-    public ElectionsManagerUtils(){
+    public ElectionsManagerUtils(String hostName, String stateName){
+        this.hostName = hostName;
+        this.stateName = stateName;
+        this.instance = "00";
+    }
 
+    public ElectionsManagerUtils(String hostName, String stateName, String instance){
+        this(hostName, stateName);
+        this.instance = instance;
     }
 
     public void log(String msg){
-        System.out.println("[ LOG " + this.hostName + " ]: " + msg);
+        System.out.println("[ " + this.hostName + " inst." + instance + " ]: " + msg);
     }
 
-    public void dbg(String msg) {System.out.println("[ -- DBG - " + this.hostName + " -- ]:" + msg);}
+    public void dbg(String msg) {System.out.println("[ -- DBG - " + this.hostName + " inst." + instance + " -- ]:" + msg);}
 
     public void parserVoters(HashMap<Integer, Voter> voters){
         String line;
