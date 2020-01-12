@@ -34,9 +34,9 @@ public class ElectionsCommitteeClient {
             br = new BufferedReader(new FileReader( rootPath + "servers" + File.separator + "servers.csv"));
             while ((line = br.readLine()) != null){
                 String[] serverCsv = line.split(csvSplitBy);
-                // Servers csv indexes- 0:state_name 1:ip(hostname) 2:port(REST) 3:gRPC port 4: RMI port
-                StateServer server = new StateServer(serverCsv[0], serverCsv[1], serverCsv[2], serverCsv[3], serverCsv[4], serverCsv[5]);
-                this.servers.put(server.getIp(),server);
+                // Servers csv indexes- 0:state_name 1:ip(hostname) 2:port(REST) 3:gRPC port 4: RMI port 5:zookeeper 6:instance
+                StateServer server = new StateServer(serverCsv[0], serverCsv[1], serverCsv[2], serverCsv[3], serverCsv[4], serverCsv[5], serverCsv[6]);
+                this.servers.put(server.getHostName(),server);
             }
         }catch (FileNotFoundException e){
             e.printStackTrace();
@@ -98,7 +98,7 @@ public class ElectionsCommitteeClient {
                     Registry registry = LocateRegistry.getRegistry(server.getIp(), Integer.parseInt(server.getRmiPort()));
                     System.out.println("Looking for Election RMI in registry");
                     ElectionsCommitteeInstructionRemote remoteExec = (ElectionsCommitteeInstructionRemote)registry
-                            .lookup("ElectionsRMI");
+                            .lookup(server.getHostName());
                     server.setRemoteExecutor(remoteExec);
                     server.setStatus(StateServer.ServerStatus.ALIVE);
                     System.out.println( "+ " + server.getIp() + " status is " + server.getStatus());

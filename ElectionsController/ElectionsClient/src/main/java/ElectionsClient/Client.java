@@ -24,6 +24,26 @@ class RunnableClient implements Runnable{
     public static final String CYAN_BOLD = "\033[1;36m";   // CYAN
     public static final String WHITE_BOLD = "\033[1;37m";  // WHITE
 
+    // Underline
+    public static final String BLACK_UL = "\033[4;30m";  // BLACK
+    public static final String RED_UL = "\033[4;31m";    // RED
+    public static final String GREEN_UL = "\033[4;32m";  // GREEN
+    public static final String YELLOW_UL = "\033[4;33m"; // YELLOW
+    public static final String BLUE_UL = "\033[4;34m";   // BLUE
+    public static final String PURPLE_UL = "\033[4;35m"; // PURPLE
+    public static final String CYAN_UL = "\033[4;36m";   // CYAN
+    public static final String WHITE_UL = "\033[4;37m";  // WHITE
+
+    // Regular Colors
+    public static final String BLACK = "\033[0;30m";   // BLACK
+    public static final String RED = "\033[0;31m";     // RED
+    public static final String GREEN = "\033[0;32m";   // GREEN
+    public static final String YELLOW = "\033[0;33m";  // YELLOW
+    public static final String BLUE = "\033[0;34m";    // BLUE
+    public static final String PURPLE = "\033[0;35m";  // PURPLE
+    public static final String CYAN = "\033[0;36m";    // CYAN
+    public static final String WHITE = "\033[0;37m";   // WHITE
+
     String ansiState(){
         switch (this.stateName){
             case "CA":{
@@ -31,6 +51,18 @@ class RunnableClient implements Runnable{
             }
             case "TX":{
                 return GREEN_BOLD;
+            }
+            case "UT":{
+                return BLUE_BOLD;
+            }
+            case "WA":{
+                return WHITE_BOLD;
+            }
+            case "KS":{
+                return RED_UL;
+            }
+            case "WY":{
+                return GREEN_UL;
             }
             default:{
                 return ANSI_RESET;
@@ -153,14 +185,15 @@ class RunnableClient implements Runnable{
 
 
 public class Client{
-    String stateName = System.getenv("DOCKER_ELECTIONS_STATE");
+    String stateName;// = System.getenv("DOCKER_ELECTIONS_STATE");
     Set<String> servers;
     Set<Integer> candidates;
     Set<Voter> voters0;
     Set<Voter> voters1;
     Set<Voter> voters2;
 
-    public Client(){
+    public Client(String stateName){
+        this.stateName = stateName;
         this.servers = new HashSet<>();
         this.voters0 = new HashSet<>();
         this.voters1 = new HashSet<>();
@@ -188,7 +221,8 @@ public class Client{
             while ((line = br.readLine()) != null){
                 String[] serverCsv = line.split(csvSplitBy);
                 if(serverCsv[0].equals(this.stateName)){
-                    String server = serverCsv[1].concat(":").concat(serverCsv[2]);
+                    String server = serverCsv[1] +":"+ serverCsv[2];
+                    //String server = serverCsv[1].concat(":").concat(serverCsv[2]);
                     servers.add(server);
                 }
             }
@@ -246,16 +280,63 @@ public class Client{
     }
 
     public static void main(String[] args) {
-        Client client = new Client();
-        RunnableClient client0 = new RunnableClient(client.stateName, new HashSet<>(client.servers), new HashSet<>(client.candidates), new HashSet<>(client.voters0), 0);
-        RunnableClient client1 = new RunnableClient(client.stateName, new HashSet<>(client.servers), new HashSet<>(client.candidates), new HashSet<>(client.voters1), 1);
-        RunnableClient client2 = new RunnableClient(client.stateName, new HashSet<>(client.servers), new HashSet<>(client.candidates), new HashSet<>(client.voters2), 2);
-        Thread thread0 = new Thread(client0);
-        Thread thread1 = new Thread(client1);
-        Thread thread2 = new Thread(client2);
-        thread0.start();
-        thread1.start();
-        thread2.start();
+        String state0 = System.getenv("DOCKER_ELECTIONS_STATE0");
+        String state1 = System.getenv("DOCKER_ELECTIONS_STATE1");
+        String state2 = System.getenv("DOCKER_ELECTIONS_STATE2");
+        String state3 = System.getenv("DOCKER_ELECTIONS_STATE3");
+        Client client0 = new Client(state0);
+        Client client1 = new Client(state1);
+        Client client2 = new Client(state2);
+        Client client3 = new Client(state3);
+        RunnableClient tunnable00 = new RunnableClient(client0.stateName, new HashSet<>(client0.servers), new HashSet<>(client0.candidates), new HashSet<>(client0.voters0), 0);
+        RunnableClient tunnable01 = new RunnableClient(client0.stateName, new HashSet<>(client0.servers), new HashSet<>(client0.candidates), new HashSet<>(client0.voters1), 1);
+        RunnableClient tunnable02 = new RunnableClient(client0.stateName, new HashSet<>(client0.servers), new HashSet<>(client0.candidates), new HashSet<>(client0.voters2), 2);
+
+        RunnableClient tunnable10 = new RunnableClient(client1.stateName, new HashSet<>(client1.servers), new HashSet<>(client1.candidates), new HashSet<>(client1.voters0), 0);
+        RunnableClient tunnable11 = new RunnableClient(client1.stateName, new HashSet<>(client1.servers), new HashSet<>(client1.candidates), new HashSet<>(client1.voters1), 1);
+        RunnableClient tunnable12 = new RunnableClient(client1.stateName, new HashSet<>(client1.servers), new HashSet<>(client1.candidates), new HashSet<>(client1.voters2), 2);
+
+        RunnableClient tunnable20 = new RunnableClient(client2.stateName, new HashSet<>(client2.servers), new HashSet<>(client2.candidates), new HashSet<>(client2.voters0), 0);
+        RunnableClient tunnable21 = new RunnableClient(client2.stateName, new HashSet<>(client2.servers), new HashSet<>(client2.candidates), new HashSet<>(client2.voters1), 1);
+        RunnableClient tunnable22 = new RunnableClient(client2.stateName, new HashSet<>(client2.servers), new HashSet<>(client2.candidates), new HashSet<>(client2.voters2), 2);
+
+        RunnableClient tunnable30 = new RunnableClient(client3.stateName, new HashSet<>(client3.servers), new HashSet<>(client3.candidates), new HashSet<>(client3.voters0), 0);
+        RunnableClient tunnable31 = new RunnableClient(client3.stateName, new HashSet<>(client3.servers), new HashSet<>(client3.candidates), new HashSet<>(client3.voters1), 1);
+        RunnableClient tunnable32 = new RunnableClient(client3.stateName, new HashSet<>(client3.servers), new HashSet<>(client3.candidates), new HashSet<>(client3.voters2), 2);
+
+        Thread thread00 = new Thread(tunnable00);
+        Thread thread01 = new Thread(tunnable01);
+        Thread thread02 = new Thread(tunnable02);
+
+        Thread thread10 = new Thread(tunnable10);
+        Thread thread11 = new Thread(tunnable11);
+        Thread thread12 = new Thread(tunnable12);
+
+        Thread thread20 = new Thread(tunnable20);
+        Thread thread21 = new Thread(tunnable21);
+        Thread thread22 = new Thread(tunnable22);
+
+        Thread thread30 = new Thread(tunnable30);
+        Thread thread31 = new Thread(tunnable31);
+        Thread thread32 = new Thread(tunnable32);
+
+        thread00.start();
+        thread01.start();
+        thread02.start();
+
+        thread10.start();
+        thread11.start();
+        thread12.start();
+
+
+        thread20.start();
+        thread21.start();
+        thread22.start();
+
+
+        thread30.start();
+        thread31.start();
+        thread32.start();
     }
 
 }

@@ -47,7 +47,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
     Integer electors;
     boolean systemUp = true;
     //boolean electionsOpen = false;
-    boolean electionsOpen = false;
+    boolean electionsOpen = true;
     boolean electionsComplete = false;
     private ElectionsZookeeperClient zookeeperClient;
     // Mapping hostname -> StateServer
@@ -65,17 +65,16 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
     private HashMap<Integer, Voter> voters;
 
 
-    public ElectionsManager() throws RemoteException {
+    public ElectionsManager(StateServer stateServer) throws RemoteException {
         super();
-        this.utils = new ElectionsManagerUtils();
+        this.server = stateServer;
+        this.utils = new ElectionsManagerUtils(stateServer);
         utils.log("Starting Elections Manager");
-        this.server = new StateServer(System.getenv("DOCKER_ELECTIONS_HOSTNAME"));
         this.clusterServers = new HashMap<>();
         this.federalServers = new HashMap<>();
         this.candidates = new HashMap<>();
         this.voters = new HashMap<>();
 
-        this.utils = new ElectionsManagerUtils();
         utils.log("Loading data base...");
         this.utils.parseServers(this.federalServers, this.clusterServers, this.server);
         this.utils.parserVoters(this.voters);
@@ -100,7 +99,29 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         }
         utils.log("Zookeeper client service started");
 
-        utils.log("Elections Manager initialization completed");
+        utils.log("Starting RMI registry initialization using " + this.server.getHostName() +
+                " as registry identifier");
+        try {
+            Registry registry = LocateRegistry.createRegistry(Integer.parseInt(this.server.getRmiPort()));
+            registry.rebind(this.server.getHostName(), this);
+            utils.log("RMI stub initialized successfully");
+        }catch (Exception e){
+            utils.log("Failed to init RMI");
+            throw e;
+        }
+        this.log("Elections Manager initialization completed sucessfully");
+    }
+
+    public void log(String msg){
+        this.utils.log(msg);
+    }
+
+    public void dbg(String msg){
+        this.utils.dbg(msg);
+    }
+
+    public void err(String msg){
+        this.utils.err(msg);
     }
 
 //    public void syncSystemUp(){
@@ -152,7 +173,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
     }
 
     private ElectionsProtoResponse sendSyncGRpcRequest(StateServer server1, ElectionsProtoRequest request){
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(server1.getHostName(), Integer.parseInt(server1.getGRpcPort())).usePlaintext(true).build();
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(server1.getIp(), Integer.parseInt(server1.getGRpcPort())).usePlaintext(true).build();
         electionsProtoServiceGrpc.electionsProtoServiceBlockingStub stub = electionsProtoServiceGrpc.newBlockingStub(channel);
         //System.out.println("Sending sync gRPC request to: " + server.getIp());
         ElectionsProtoResponse response = stub.electionsProtoHandler(request);

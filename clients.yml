@@ -27,28 +27,20 @@ services:
 #      - elections_net
 
   elections_client_ca:
-    container_name: clientCA
+    container_name: clients
     build:
       context: .
       dockerfile: ./ElectionsController/ElectionsClient/Dockerfile
     image: elections_client
-    hostname: ElectionsClient-CA
+    hostname: ElectionsClients
     environment:
-      - DOCKER_ELECTIONS_STATE=CA
+      - DOCKER_ELECTIONS_STATE0=CA
+      - DOCKER_ELECTIONS_STATE1=TX
+      - DOCKER_ELECTIONS_STATE2=KS
+      - DOCKER_ELECTIONS_STATE3=WY
     networks:
       - elections_net
 
-  elections_client_tx:
-    container_name: clientTX
-    build:
-      context: .
-      dockerfile: ./ElectionsController/ElectionsClient/Dockerfile
-    image: elections_client
-    hostname: ElectionsClient-TX
-    environment:
-      - DOCKER_ELECTIONS_STATE=TX
-    networks:
-      - elections_net
 
 networks:
   elections_net:

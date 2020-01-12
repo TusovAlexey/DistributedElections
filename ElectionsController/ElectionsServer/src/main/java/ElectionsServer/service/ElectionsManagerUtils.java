@@ -13,13 +13,15 @@ import java.util.HashMap;
 public class ElectionsManagerUtils {
     static final boolean dbgEnable = false;
     static final boolean errorEnable = true;
+    StateServer stateServer;
+    String hostName;
+    String stateName;
 
-    String hostName = System.getenv("DOCKER_ELECTIONS_HOSTNAME");
-    String stateName = System.getenv("DOCKER_ELECTIONS_STATE");
 
-
-    public ElectionsManagerUtils(){
-
+    public ElectionsManagerUtils(StateServer stateServer){
+        this.stateServer = stateServer;
+        this.stateName = stateServer.getState();
+        this.hostName = stateServer.getHostName();
     }
 
     public void log(String msg){
@@ -116,10 +118,9 @@ public class ElectionsManagerUtils {
             while ((line = br.readLine()) != null){
                 String[] serverCsv = line.split(csvSplitBy);
                 // Servers csv indexes- 0:state_name 1:ip 2:port(REST) 3:gRPC port 4: RMI port 5:ZK server name
-                StateServer server = new StateServer(serverCsv[0], serverCsv[1], serverCsv[2], serverCsv[3], serverCsv[4], serverCsv[5]);
+                StateServer server = new StateServer(serverCsv[0], serverCsv[1], serverCsv[2], serverCsv[3], serverCsv[4], serverCsv[5], serverCsv[6]);
                 FederalServers.put(server.getHostName(),server);
-                if (server.getHostName().equals(this.hostName)){
-                    currentServer.setState(server.getState());
+                if (server.getState().equals(currentServer.getState()) && server.getInstance().equals(currentServer.getInstance())){
                     currentServer.setRESTport(server.getRESTport());
                     currentServer.setGRpcPort(server.getGRpcPort());
                     currentServer.setRmiPort(server.getRmiPort());

@@ -1,5 +1,6 @@
 package ElectionsServer.controllers;
 
+import ElectionsServer.Server;
 import ElectionsServer.models.Voter;
 import ElectionsServer.service.ElectionsManager;
 import org.springframework.web.bind.annotation.*;
@@ -14,41 +15,20 @@ import java.util.List;
 @RestController
 public class ElectionsController {
     // My state information (voters collection, state name, servers list, electors number)
-    ElectionsManager electionsManager;
 
-    ElectionsController(){
-        // Need to find out how to pass arguments to manager constructor
-        try {
-            this.electionsManager = new ElectionsManager();
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
+    Server.StateServerRESTCallback callback;
 
-
-        Integer rmiPort = Integer.parseInt(System.getenv("DOCKER_ELETIONS_RMI_PORT"));
-        System.setProperty("java.rmi.server.hostname", System.getenv("DOCKER_ELECTIONS_HOSTNAME"));
-
-        // Bind to registry for RMI
-        try {
-            Registry registry = LocateRegistry.createRegistry(rmiPort);
-            //ElectionsManager stub = (ElectionsManager) UnicastRemoteObject.exportObject(this.electionsManager, 0);
-            registry.rebind("ElectionsRMI", this.electionsManager);
-            System.out.println("RMI stub initialized on port " + rmiPort);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-
-        //electionsManager.syncSystemUp();
-        //electionsManager.waitElectionsOpen();
+    ElectionsController(Server.StateServerRESTCallback callback){
+        this.callback = callback;
     }
 
     @GetMapping("/elections")
-    List<Voter> all(){return this.electionsManager.getAllVoters();}
+    List<Voter> all(){return this.callback.listVotersHandle();}
 
     @PostMapping("/elections")
     String newVote(@RequestBody Voter newVote){
         try {
-            return this.electionsManager.proceedVoteFromClient(newVote);
+            return this.callback.voteHandle(newVote);
         }catch (Exception e){
             e.printStackTrace();
             return "";
@@ -58,7 +38,7 @@ public class ElectionsController {
     @PutMapping("/elections/{id}")
     String replaceVote(@RequestBody Voter newVote, @PathVariable Integer id){
         try {
-            return this.electionsManager.proceedVoteFromClient(newVote);
+            return this.callback.voteHandle(newVote);
         }catch (Exception e){
             e.printStackTrace();
             return "";
