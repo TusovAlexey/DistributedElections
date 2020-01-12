@@ -193,16 +193,17 @@ public class ElectionsCommitteeClient {
         Set<String> states = this.servers.values().stream().map(StateServer::getState).collect(Collectors.toSet());
         for(String state : states){
             HashMap<Integer, Candidate> stateResults = this.getStateResults(state);
-            System.out.println("State " + state + " results:");
+            System.out.print(state + ":");
             for(Candidate candidate : stateResults.values()){
-                System.out.println("    " + candidate);
+                System.out.print("  " + candidate);
                 Candidate localCandidate = this.candidates.get(candidate.getIndex());
                 localCandidate.setVotes(localCandidate.getVotes() + candidate.getVotes());
                 localCandidate.setElectors(localCandidate.getElectors() + candidate.getElectors());
             }
+            System.out.println("");
         }
 
-        System.out.println("Total results:");
+        System.out.println("Federal results:");
         for (Candidate candidate: this.candidates.values()){
             System.out.println("    " + candidate);
         }

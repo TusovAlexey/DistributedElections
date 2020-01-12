@@ -37,7 +37,8 @@ import java.util.concurrent.TimeUnit;
 
 
 public class ElectionsZookeeperClient {
-    private static final boolean dbgEnable = true;
+    private static final boolean dbgEnable = false;
+    private static final boolean errorEnable = true;
 
     private enum UpdateState{
         NOT_ASSIGNED,
@@ -92,6 +93,12 @@ public class ElectionsZookeeperClient {
     private void dbg(String msg){
         if(dbgEnable){
             System.out.println("[ -- DBG - "+this.server.getHostName()+" --] " + msg);
+        }
+    }
+
+    private void error(String msg){
+        if(errorEnable){
+            System.out.println("\033[1;31m" + "[ -- ERR - "+this.server.getHostName()+" --] " + "\u001B[0m" + msg);
         }
     }
 
@@ -167,7 +174,7 @@ public class ElectionsZookeeperClient {
         try {
             client.delete().guaranteed().forPath(path);
         }catch (Exception e){
-            dbg("Failed to delete node " + path);
+            error("Failed to delete node " + path);
             throw e;
         }
     }
@@ -203,7 +210,7 @@ public class ElectionsZookeeperClient {
         try {
             return client.getChildren().forPath(rootSubTree);
         }catch (Exception e){
-            dbg("Failed to get nodes from " + rootSubTree);
+            error("Failed to get nodes from " + rootSubTree);
             return new ArrayList<>();
         }
     }
@@ -212,7 +219,7 @@ public class ElectionsZookeeperClient {
         try {
             client.setData().forPath(path, data.getBytes());
         }catch (Exception e){
-            dbg("Failed to set data for " + path);
+            error("Failed to set data for " + path);
             throw e;
         }
     }
@@ -222,7 +229,7 @@ public class ElectionsZookeeperClient {
         try{
             bytes = client.getData().forPath(path);
         }catch (Exception e){
-            dbg("Failed to get data from " + path);
+            error("Failed to get data from " + path);
             throw e;
         }
         if(bytes!=null){
@@ -259,7 +266,7 @@ public class ElectionsZookeeperClient {
             // Remove from "update_out" and back to business
             deleteNode(pathToServerName("update_out"));
         } catch (Exception e) {
-            dbg("Atomic broadcast failed");
+            error("Atomic broadcast failed");
             return false;
         }
 

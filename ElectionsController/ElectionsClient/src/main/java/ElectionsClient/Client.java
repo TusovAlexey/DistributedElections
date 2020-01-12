@@ -141,10 +141,12 @@ class RunnableClient implements Runnable{
                 break;
             }
             try {
-                TimeUnit.SECONDS.sleep(3);
+                Integer rand = new Random().nextInt(10);
+                TimeUnit.SECONDS.sleep(15 + rand);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+
         }
     }
 }

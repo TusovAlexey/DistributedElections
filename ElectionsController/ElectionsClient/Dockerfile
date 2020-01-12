@@ -1,5 +1,4 @@
 FROM openjdk:8-jdk-alpine
 
-COPY . /elections
-WORKDIR /elections/ElectionsController/ElectionsClient
-ENTRYPOINT ["java", "-jar", "./target/ElectionsClient-1.jar"]
+COPY ./ElectionsController/ElectionsClient/target/ElectionsClient-1.jar ElectionsClient-1.jar
+ENTRYPOINT ["java", "-jar", "./ElectionsClient-1.jar"]

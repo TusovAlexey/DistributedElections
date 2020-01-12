@@ -1,7 +1,9 @@
 FROM openjdk:8-jdk
 
-COPY . /elections
-WORKDIR /elections/ElectionsController/ElectionsServer
+COPY ./ElectionsController/ElectionsServer/target/ElectionsServer-1.jar Committee/ElectionsServer-1.jar
+COPY ./ElectionsController/ElectionsServer/src/main/resources Committee/src/main/resources
+# WORKDIR /elections/ElectionsController/ElectionsServer
 # ENTRYPOINT ["java", "-cp", "./target/ElectionsServer-1.jar", "ElectionsCommittee.ElectionsCommitteeClientMain"]
-ENTRYPOINT ["ping", "zookeeper1"]
+ENTRYPOINT ["sleep", "10000000000000000"]
+
 # java -cp ./target/ElectionsServer-1.jar ElectionsCommittee.ElectionsCommitteeClientMain

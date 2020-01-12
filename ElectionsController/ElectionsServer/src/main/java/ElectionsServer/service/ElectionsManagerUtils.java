@@ -11,27 +11,28 @@ import java.io.*;
 import java.util.HashMap;
 
 public class ElectionsManagerUtils {
-    String hostName;
-    String stateName;
-    String instance;
+    static final boolean dbgEnable = false;
+    static final boolean errorEnable = true;
+
+    String hostName = System.getenv("DOCKER_ELECTIONS_HOSTNAME");
+    String stateName = System.getenv("DOCKER_ELECTIONS_STATE");
 
 
-    public ElectionsManagerUtils(String hostName, String stateName){
-        this.hostName = hostName;
-        this.stateName = stateName;
-        this.instance = "00";
-    }
+    public ElectionsManagerUtils(){
 
-    public ElectionsManagerUtils(String hostName, String stateName, String instance){
-        this(hostName, stateName);
-        this.instance = instance;
     }
 
     public void log(String msg){
-        System.out.println("[ " + this.hostName + " inst." + instance + " ]: " + msg);
+        System.out.println("[ LOG " + this.hostName + " ] " + msg);
     }
 
-    public void dbg(String msg) {System.out.println("[ -- DBG - " + this.hostName + " inst." + instance + " -- ]:" + msg);}
+    public void dbg(String msg) {
+        if(dbgEnable){
+            System.out.println("[ -- DBG - " + this.hostName + " -- ] " + msg);
+        }
+    }
+
+    public void err(String msg) {System.out.println("\033[1;31m" + "[ -- ERR - " + this.hostName + " -- ]" + "\u001B[0m" + msg);}
 
     public void parserVoters(HashMap<Integer, Voter> voters){
         String line;

@@ -44,7 +44,8 @@ public class Candidate implements Serializable {
 
     @Override
     public String toString() {
-        return "Candidate " + this.name + " received " + this.votes + " votes, " +
-                "and got " + this.electors + " electors.";
+        return this.name + "- " + electors + " electors(" + votes + ") ";
+        //return "Candidate " + this.name + " received " + this.votes + " votes, " +
+        //        "and got " + this.electors + " electors.";
     }
 }

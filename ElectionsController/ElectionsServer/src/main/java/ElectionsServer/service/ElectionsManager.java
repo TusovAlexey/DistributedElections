@@ -48,6 +48,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
     boolean systemUp = true;
     //boolean electionsOpen = false;
     boolean electionsOpen = false;
+    boolean electionsComplete = false;
     private ElectionsZookeeperClient zookeeperClient;
     // Mapping hostname -> StateServer
     private HashMap<String, StateServer> clusterServers;
@@ -64,17 +65,17 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
     private HashMap<Integer, Voter> voters;
 
 
-    public ElectionsManager(StateServer stateServer) throws RemoteException {
+    public ElectionsManager() throws RemoteException {
         super();
-        this.server = stateServer;
-        this.utils = new ElectionsManagerUtils(stateServer.getHostName(), server.getState(), server.getInstance());
+        this.utils = new ElectionsManagerUtils();
         utils.log("Starting Elections Manager");
+        this.server = new StateServer(System.getenv("DOCKER_ELECTIONS_HOSTNAME"));
         this.clusterServers = new HashMap<>();
         this.federalServers = new HashMap<>();
         this.candidates = new HashMap<>();
         this.voters = new HashMap<>();
 
-        //this.utils = new ElectionsManagerUtils();
+        this.utils = new ElectionsManagerUtils();
         utils.log("Loading data base...");
         this.utils.parseServers(this.federalServers, this.clusterServers, this.server);
         this.utils.parserVoters(this.voters);
@@ -181,6 +182,13 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         return response.getSucceed();
     }
 
+    public void allReady(){
+        try {
+            TimeUnit.SECONDS.sleep(10);
+        }catch (InterruptedException ignored){}
+        this.utils.log("\033[1;33m" + " =============== Systems ready ===============" + "\u001B[0m" );
+    }
+
     public String proceedVoteFromClient(Voter vote) throws Exception {
         // This context can be done only by main thread (REST controller)
 //        if (!this.systemUp){
@@ -188,6 +196,8 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
 //        }else
         if(!this.electionsOpen){
             return "We are sorry, elections not started yet. We are waiting to start command from the committee";
+        }else if(this.electionsComplete){
+            return "Elections completed, maybe next time...";
         }
 
         String answer = "";
@@ -234,7 +244,9 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
                 databaseMutex.release(1);
             }
         }
-
+        if(result==false){
+            utils.err("Returned from atomic broadcast with");
+        }
         return result;
     }
 
@@ -388,15 +400,17 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
         ElectionsCommitteeInstruction instruction = (ElectionsCommitteeInstruction)task;
         ElectionsCommitteeInstruction.ElectionCommitteeInstructionType instructionType = instruction.getInstructionType();
         if(instructionType.equals(START_ELECTIONS)){
-            System.out.println("=======================> START_ELECTIONS:");
+            this.utils.log("================= Elections started =================");
+            //System.out.println("=======================> START_ELECTIONS:");
             this.electionsOpen = true;
             return task.responseStartElections();
         }else if(instructionType.equals(STOP_ELECTIONS)){
-            System.out.println("=======================> STOP_ELECTIONS:");
+            this.utils.log("================= Elections Completed =================");
+            //System.out.println("=======================> STOP_ELECTIONS:");
             this.electionsOpen = false;
             return task.responseStopElections();
         }else if(instructionType.equals(GET_RESULTS)){
-            System.out.println("=======================> GET_RESULTS:");
+            //System.out.println("=======================> GET_RESULTS:");
             HashMap<Integer, Candidate> candidateResults = getResults();
             return task.responseGetResults(candidateResults);
         }

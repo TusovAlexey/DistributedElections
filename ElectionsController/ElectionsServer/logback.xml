@@ -33,6 +33,8 @@ DEBUG: Shows messages classified as DEBUG, INFO, WARNING, ERROR, and FATAL (Deve
     <logger name="org.springframework.security" level="WARN"/>
     <logger name="org.springframework.cache" level="WARN"/>
     <logger name="org.apache.zookeeper.ZooKeeper" level="WARN"/>
+    <logger name="org.apache.zookeeper.ClientCnxn" level="WARN"/>
+
 
     <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
         <resetJUL>true</resetJUL>

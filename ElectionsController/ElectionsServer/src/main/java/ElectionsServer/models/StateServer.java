@@ -27,7 +27,6 @@ public class StateServer {
     private ElectionsCommitteeInstructionRemote remoteExecutor;
     private boolean isLeader;
     private String zooKeeperServer;
-    private String instance;
 
     public StateServer(String state, String ip, String RESTport, String GRpcPort, String rmiPort, String zooKeeperServer){
         this.state = state;
@@ -37,12 +36,6 @@ public class StateServer {
         this.RMIport = rmiPort;
         this.isLeader = false;
         this.zooKeeperServer = zooKeeperServer;
-        this.instance = "00";
-    }
-
-    public StateServer(String state, String ip, String RESTport, String GRpcPort, String rmiPort, String zooKeeperServer, String instance){
-        this(state, ip, RESTport, GRpcPort, rmiPort, zooKeeperServer);
-        this.instance = instance;
     }
 
     public StateServer(String hostName){
@@ -66,7 +59,6 @@ public class StateServer {
     public String getRmiPort(){return this.RMIport;}
     public void setRmiPort(String rmiPort){this.RMIport = rmiPort;}
     public ElectionsCommitteeInstructionRemote getRemoteExecutor(){return this.remoteExecutor;}
-    public String getInstance(){return this.instance;}
     public void setRemoteExecutor(ElectionsCommitteeInstructionRemote remoteExecutor){
         this.remoteExecutor = remoteExecutor;
     }
@@ -86,7 +78,7 @@ public class StateServer {
             return instructionRequest;
         }
     }
-
+    
 
     public void takeLeadership(){this.isLeader = true;}
 
