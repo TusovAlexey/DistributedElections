@@ -47,7 +47,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
     Integer electors;
     boolean systemUp = true;
     //boolean electionsOpen = false;
-    boolean electionsOpen = true;
+    boolean electionsOpen = false;
     boolean electionsComplete = false;
     private ElectionsZookeeperClient zookeeperClient;
     // Mapping hostname -> StateServer
@@ -109,7 +109,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
             utils.log("Failed to init RMI");
             throw e;
         }
-        this.log("Elections Manager initialization completed sucessfully");
+        this.log("Elections Manager initialization completed successfully");
     }
 
     public void log(String msg){
@@ -205,7 +205,7 @@ public class ElectionsManager extends UnicastRemoteObject implements ElectionsCo
 
     public void allReady(){
         try {
-            TimeUnit.SECONDS.sleep(10);
+            TimeUnit.SECONDS.sleep(2);
         }catch (InterruptedException ignored){}
         this.utils.log("\033[1;33m" + " =============== Systems ready ===============" + "\u001B[0m" );
     }

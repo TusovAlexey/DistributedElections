@@ -94,14 +94,14 @@ public class ElectionsCommitteeClient {
             Integer attempts = 100;
             while (attempts > 0){
                 try {
-                    System.out.println("Trying to get registry from " + server.getIp() + ":" + server.getRmiPort());
+                    System.out.println("Trying to get registry from " + server.getHostName() + ":" + server.getRmiPort());
                     Registry registry = LocateRegistry.getRegistry(server.getIp(), Integer.parseInt(server.getRmiPort()));
                     System.out.println("Looking for Election RMI in registry");
                     ElectionsCommitteeInstructionRemote remoteExec = (ElectionsCommitteeInstructionRemote)registry
                             .lookup(server.getHostName());
                     server.setRemoteExecutor(remoteExec);
                     server.setStatus(StateServer.ServerStatus.ALIVE);
-                    System.out.println( "+ " + server.getIp() + " status is " + server.getStatus());
+                    System.out.println( "+ " + server.getHostName() + " status is " + server.getStatus());
                     break;
                 } catch (RemoteException | NotBoundException e) {
                     e.printStackTrace();
@@ -139,13 +139,13 @@ public class ElectionsCommitteeClient {
                     new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.START_ELECTIONS);
             ElectionsCommitteeInstruction systemUpResponse = server.remoteRMI(systemUpRequest);
             if(systemUpResponse.getInstructionStatus()== ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
-                System.out.println("Elections in server " + server.getIp() + " is started");
+                System.out.println("Elections in server " + server.getHostName() + " is started");
             }else{
                 if (server.getStatus().equals(StateServer.ServerStatus.ALIVE)){
-                    System.out.println("Elections in server " + server.getIp() + " is started");
+                    System.out.println("Elections in server " + server.getHostName() + " is started");
                 }else {
-                    System.out.println("Server " + server.getIp() + " is down, unable to proceed instruction");
-                    System.out.println("Server " + server.getIp() + " Status is  " + server.getStatus());
+                    System.out.println("Server " + server.getHostName() + " is down, unable to proceed instruction");
+                    System.out.println("Server " + server.getHostName() + " Status is  " + server.getStatus());
                 }
             }
         }
@@ -157,12 +157,12 @@ public class ElectionsCommitteeClient {
                     new ElectionsCommitteeInstruction(ElectionsCommitteeInstruction.ElectionCommitteeInstructionType.STOP_ELECTIONS);
             ElectionsCommitteeInstruction systemUpResponse = server.remoteRMI(systemUpRequest);
             if(systemUpResponse.getInstructionStatus()== ElectionsCommitteeInstruction.ElectionsCommitteeInstructionStatus.SUCCESS){
-                System.out.println("Elections in server " + server.getIp() + " is ended");
+                System.out.println("Elections in server " + server.getHostName() + " is ended");
             }else{
                 if (server.getStatus().equals(StateServer.ServerStatus.ALIVE)){
-                    System.out.println("Elections in server " + server.getIp() + " is ended");
+                    System.out.println("Elections in server " + server.getHostName() + " is ended");
                 }else {
-                    System.out.println("Server " + server.getIp() + " is down, unable to proceed instruction");
+                    System.out.println("Server " + server.getHostName() + " is down, unable to proceed instruction");
                 }
             }
         }

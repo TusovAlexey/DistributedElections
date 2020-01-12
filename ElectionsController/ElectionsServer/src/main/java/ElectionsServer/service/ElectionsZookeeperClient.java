@@ -282,7 +282,8 @@ public class ElectionsZookeeperClient {
     }
 
     public String getLeader() throws Exception {
-        return getStateLeader(server.getState());
+        return electionService.getLeader();
+        //return getStateLeader(server.getState());
     }
 
     private void dbgTreeCache(String rootTree, TreeCacheEvent treeCacheEvent){

@@ -31,16 +31,16 @@ public class StateServer {
     private String zooKeeperServer;
     private String instance;
 
-    public StateServer(String state, String hostName, String RESTport, String GRpcPort, String rmiPort, String zooKeeperServer, String instance){
+    public StateServer(String state, String ip, String RESTport, String GRpcPort, String rmiPort, String zooKeeperServer, String instance){
         this.state = state;
-        this.hostName = hostName + instance;
+        this.hostName = ip + instance;
         this.RESTport = RESTport;
         this.GRpcPort = GRpcPort;
         this.RMIport = rmiPort;
         this.isLeader = false;
         this.zooKeeperServer = zooKeeperServer;
         this.instance = instance;
-        this.ip = hostName;
+        this.ip = ip;
     }
 
     public StateServer(String state, String RESTport, String instance){
@@ -52,7 +52,7 @@ public class StateServer {
         this.isLeader = false;
         this.zooKeeperServer = "zooKeeperServer";
         this.instance = instance;
-        this.ip = "server" + state;
+        this.ip = "";
     }
 
 

@@ -88,6 +88,7 @@ class RunnableServer implements Runnable{
             return;
         }
         callback.init(this.electionsManager);
+        this.electionsManager.allReady();
     }
 }
 
